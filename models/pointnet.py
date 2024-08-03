@@ -1,30 +1,33 @@
 import torch
 from torch import nn
+from typing import List
 
 class TNet(nn.Module):
     """
     Transformation Network
     """
 
-    def __init__(self, in_dim: int = 64) -> None:
+    def __init__(self, in_dim: int = 64, 
+                 feature_dims: List[int] = [64,128,1024,512,256]) -> None:
         super().__init__()
 
         self.in_dim = in_dim
+        self.feature_dims = feature_dims
 
-        self.conv1 = nn.Conv1d(in_dim, 64, 1)
-        self.conv2 = nn.Conv1d(64, 128, 1)
-        self.conv3 = nn.Conv1d(128, 1024, 1)
+        self.conv1 = nn.Conv1d(in_dim, self.feature_dims[0], 1)
+        self.conv2 = nn.Conv1d(self.feature_dims[0], self.feature_dims[1], 1)
+        self.conv3 = nn.Conv1d(self.feature_dims[1], self.feature_dims[2], 1)
 
-        self.fc1 = nn.Linear(1024, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, in_dim**2)
+        self.fc1 = nn.Linear(self.feature_dims[2], self.feature_dims[3])
+        self.fc2 = nn.Linear(self.feature_dims[3], self.feature_dims[4])
+        self.fc3 = nn.Linear(self.feature_dims[4], in_dim**2)
         self.relu = nn.ReLU()
 
-        self.bn1 = nn.BatchNorm1d(64)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.bn3 = nn.BatchNorm1d(1024)
-        self.bn4 = nn.BatchNorm1d(512)
-        self.bn5 = nn.BatchNorm1d(256)
+        self.bn1 = nn.BatchNorm1d(self.feature_dims[0])
+        self.bn2 = nn.BatchNorm1d(self.feature_dims[1])
+        self.bn3 = nn.BatchNorm1d(self.feature_dims[2])
+        self.bn4 = nn.BatchNorm1d(self.feature_dims[3])
+        self.bn5 = nn.BatchNorm1d(self.feature_dims[4])
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -45,7 +48,7 @@ class TNet(nn.Module):
 
         # max pooling
         x = torch.max(x, 2, keepdim=True)[0]
-        x = x.view(-1, 1024) # (batch_size, 1024) shape
+        x = x.view(-1, self.feature_dims[2]) # (batch_size, 1024) shape
 
         # FC layers
         x = self.relu(self.bn4(self.fc1(x)))
@@ -66,7 +69,8 @@ class PointNet(nn.Module):
 
     def __init__(self, 
                  point_dim: int = 3, 
-                 feature_dim: int = 768) -> None:
+                 feature_dims: List[int] = [64,128,768],
+                 tnet_feature_dims: List[int] = [64,128,1024,512,256]) -> None:
         """
         Constructor of the PointNet
 
@@ -78,18 +82,19 @@ class PointNet(nn.Module):
         super().__init__()
 
         self.point_dim = point_dim
-        self.feature_dim = feature_dim
+        self.feature_dims = feature_dims
+        self.tnet_feature_dims = tnet_feature_dims
 
-        self.conv1 = nn.Conv1d(self.point_dim, 64, 1)
-        self.conv2 = nn.Conv1d(64, 128, 1)
-        self.conv3 = nn.Conv1d(128, self.feature_dim, 1)
+        self.conv1 = nn.Conv1d(self.point_dim, self.feature_dims[0], 1)
+        self.conv2 = nn.Conv1d(self.feature_dims[0], self.feature_dims[1], 1)
+        self.conv3 = nn.Conv1d(self.feature_dims[1], self.feature_dims[2], 1)
 
-        self.bn1 = nn.BatchNorm1d(64)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.bn3 = nn.BatchNorm1d(self.feature_dim)
+        self.bn1 = nn.BatchNorm1d(self.feature_dims[0])
+        self.bn2 = nn.BatchNorm1d(self.feature_dims[1])
+        self.bn3 = nn.BatchNorm1d(self.feature_dims[2])
 
-        self.t1 = TNet(in_dim=point_dim)
-        self.t2 = TNet(in_dim=64)
+        self.t1 = TNet(in_dim=point_dim, feature_dims=tnet_feature_dims)
+        self.t2 = TNet(in_dim=self.feature_dims[0], feature_dims=tnet_feature_dims)
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
