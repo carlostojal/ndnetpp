@@ -79,7 +79,7 @@ __global__ void accumulate_normal_dists(float* points, long n_points, long n_des
     \param voxels_y The number of voxels in y direction.
     \param voxels_z The number of voxels in z direction.
 */
-__device__ void calculate_normal_dists(float* normal_dists, int* normal_dist_samples, long voxels_x, long voxels_y, long voxels_z) {
+__global__ void calculate_normal_dists(float* normal_dists, int* normal_dist_samples, long voxels_x, long voxels_y, long voxels_z) {
 
     long voxel_idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (voxel_idx >= voxels_x * voxels_y * voxels_z) return;
@@ -123,3 +123,19 @@ __device__ void calculate_normal_dists(float* normal_dists, int* normal_dist_sam
     normal_dist[11] = cov_zz;
 }
 
+/*! \brief Make all normal distributions have zero mean. 
+
+    \param normal_dists The normal distributions. Each normal distribution is 12-d (3-d mean and 9-d covariance matrix).
+    \param voxels_x The number of voxels in x direction.
+    \param voxels_y The number of voxels in y direction.
+    \param voxels_z The number of voxels in z direction.
+*/
+__global__ void zero_normal_dists(float *normal_dists, long voxels_x, long voxels_y, long voxels_z) {
+    long voxel_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (voxel_idx >= voxels_x * voxels_y * voxels_z) return;
+
+    float* normal_dist = &normal_dists[12 * voxel_idx];
+    normal_dist[0] = 0;
+    normal_dist[1] = 0;
+    normal_dist[2] = 0;
+}
