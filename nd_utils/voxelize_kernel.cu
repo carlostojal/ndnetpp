@@ -1,5 +1,6 @@
 #include <cuda_runtime.h>
 #include <cstdint>
+#include <climits>
 
 /*! \brief Accumulate the normal distributions for each voxel.
 
@@ -138,4 +139,52 @@ __global__ void zero_normal_dists(float *normal_dists, long voxels_x, long voxel
     normal_dist[0] = 0;
     normal_dist[1] = 0;
     normal_dist[2] = 0;
+}
+
+/*! \brief Find the limits of the point coordinates using parallel reduction.
+
+    \param points The point coordinates.
+    \param n_points The number of points.
+    \param min The minimum point coordinates.
+    \param max The maximum point coordinates.
+*/
+__global__ void find_limits(float* points, long n_points, float* min, float* max) {
+
+    extern __shared__ float sdata[];
+
+    long idx = blockIdx.x * blockDim.x + threadIdx.x;
+    long tid = threadIdx.x;
+
+    float *smin = &sdata[tid*6];
+    float *smax = &sdata[tid*6 + 3];
+
+    // load the point coordinates into shared memory
+    if(idx < n_points) {
+        cudaMemcpy(smin, &points[3 * idx], 3 * sizeof(float), cudaMemcpyDeviceToDevice);
+        cudaMemcpy(smax, &points[3 * idx], 3 * sizeof(float), cudaMemcpyDeviceToDevice);
+    } else {
+        smin[0] = smin[1] = smin[2] = FLT_MAX;
+        smax[0] = smax[1] = smax[2] = -FLT_MAX;
+    }
+
+    __syncthreads();
+
+    // parallel reduction
+    for(unsigned int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+        if(tid < stride) {
+            smin[0] = fminf(smin[0], sdata[(tid + stride)*6]);
+            smin[1] = fminf(smin[1], sdata[(tid + stride)*6 + 1]);
+            smin[2] = fminf(smin[2], sdata[(tid + stride)*6 + 2]);
+            smax[0] = fmaxf(smax[0], sdata[(tid + stride)*6 + 3]);
+            smax[1] = fmaxf(smax[1], sdata[(tid + stride)*6 + 4]);
+            smax[2] = fmaxf(smax[2], sdata[(tid + stride)*6 + 5]);
+        }
+        __syncthreads();
+    }
+
+    // write the results to global memory
+    if(tid == 0) {
+        cudaMemcpy(min, smin, 3 * sizeof(float), cudaMemcpyDeviceToDevice);
+        cudaMemcpy(max, smax, 3 * sizeof(float), cudaMemcpyDeviceToDevice);
+    }
 }
