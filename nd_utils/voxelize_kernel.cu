@@ -160,6 +160,7 @@ __global__ void find_limits(float* points, long n_points, float* min, float* max
 
     // load the point coordinates into shared memory
     if(idx < n_points) {
+        // TODO: error handling
         cudaMemcpy(smin, &points[3 * idx], 3 * sizeof(float), cudaMemcpyDeviceToDevice);
         cudaMemcpy(smax, &points[3 * idx], 3 * sizeof(float), cudaMemcpyDeviceToDevice);
     } else {
@@ -184,6 +185,7 @@ __global__ void find_limits(float* points, long n_points, float* min, float* max
 
     // write the results to global memory
     if(tid == 0) {
+        // TODO: error handling
         cudaMemcpy(min, smin, 3 * sizeof(float), cudaMemcpyDeviceToDevice);
         cudaMemcpy(max, smax, 3 * sizeof(float), cudaMemcpyDeviceToDevice);
     }
