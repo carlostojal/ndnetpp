@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-import nd_utils
+import nd_utils.voxelization
 
 class VoxelizerFunction(torch.autograd.Function):
     @staticmethod
@@ -17,6 +17,10 @@ class VoxelizerFunction(torch.autograd.Function):
             torch.Tensor: Normal distribution means (N1, 3).
             torch.Tensor: Normal distribution covariances (N1, 3, 3).
         """
+
+        # find the point cloud limits and dimension in each axis
+        min_coords, max_coords, dimensions = nd_utils.voxelization.find_point_cloud_limits(input)
+
         # TODO
         raise NotImplementedError("VoxelizerFunciton.forward is not implemented.")
 
