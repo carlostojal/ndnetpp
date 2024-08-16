@@ -4,19 +4,20 @@ import nd_utils
 
 class VoxelizerFunction(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, input: torch.Tensor, num_desired_dist: int, num_desired_dist_thres: float = 0.2):
+    def forward(ctx, input: torch.Tensor, num_desired_dists: int, num_desired_dists_thres: float = 0.2):
         """
         Voxelize the input point cloud.
 
         Args:
             input (torch.Tensor): Input point cloud of shape (N, 3).
-            num_desired_dist (int): Number of desired normal distributions.
-            num_desired_dist_thres (float): Threshold for the number of desired normal distributions.
+            num_desired_dists (int): Number of desired normal distributions.
+            num_desired_dists_thres (float): Threshold for the number of desired normal distributions.
 
         Returns:
             torch.Tensor: Normal distribution means (N1, 3).
             torch.Tensor: Normal distribution covariances (N1, 3, 3).
         """
+        # TODO
         raise NotImplementedError("VoxelizerFunciton.forward is not implemented.")
 
     @staticmethod
@@ -30,17 +31,20 @@ class VoxelizerFunction(torch.autograd.Function):
         Returns:
             torch.Tensor: gradients propagated to the points corresponding to each voxel (N).
         """
+        # TODO
         raise NotImplementedError("VoxelizerFunction.backward is not implemented.")
 
 class Voxelizer(nn.Module):
     """
     Voxelize and estimate normal distributions of the input point cloud, one per voxel.
     """
-    def __init__(self):
-        pass
+    def __init__(self, num_desired_dists: int, num_desired_dists_thres: float = 0.2):
+        self.num_desired_dists = num_desired_dists
+        self.num_desired_dists_thres = num_desired_dists_thres
 
     def forward(self, x):
-        return x
+        # apply the autograd function
+        return VoxelizerFunction.apply(x, self.num_desired_dists, self.num_desired_dists_thres)
 
 
 class Pruner(nn.Module):
