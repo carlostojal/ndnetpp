@@ -21,6 +21,8 @@ class VoxelizerFunction(torch.autograd.Function):
         # find the point cloud limits and dimension in each axis
         min_coords, max_coords, dimensions = nd_utils.voxelization.find_point_cloud_limits(input)
 
+        voxel_size, n_voxels = nd_utils.voxelization.calculate_voxel_size(dimensions, num_desired_dists*(1.0+num_desired_dists_thres))
+
         # TODO
         raise NotImplementedError("VoxelizerFunciton.forward is not implemented.")
 
