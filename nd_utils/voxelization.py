@@ -57,7 +57,7 @@ def metric_to_voxel_space(points: torch.Tensor, voxel_size: float, n_voxels: tor
         min_coords (torch.Tensor): Minimum coordinate values in metric space (3)
 
     Returns:
-        voxel_idx (torch.Tensor): Voxel indices in each dimension (3)
+        voxel_idx (torch.Tensor): Voxel indices in each dimension (n_points, 3)
     """
 
     voxel_idx = torch.floor((points - min_coords) / voxel_size)
@@ -68,3 +68,19 @@ def metric_to_voxel_space(points: torch.Tensor, voxel_size: float, n_voxels: tor
         raise ValueError("Point coordinates out of point cloud bounds.")
     
     return voxel_idx
+
+def voxel_to_metric_space(voxels: torch.Tensor, voxel_size: float,
+                          min_coords: torch.Tensor) -> torch.Tensor:
+    """
+    Map a voxel center to metric space.
+
+    Args:
+        voxels (torch.Tensor): Coordinates of the voxels in voxel space (n_voxels, 3)
+        voxel_size (float): Voxel size
+        min_coords (torch.Tensor): Minimum coordinate values in metric space (3)
+
+    Returns:
+        coords (torch.Tensor): Coordinates of the voxel centers in metric space (n_voxels, 3)
+    """
+
+    return (voxels * voxel_size) + (voxel_size / 2.0) + min_coords
