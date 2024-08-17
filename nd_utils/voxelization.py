@@ -54,19 +54,19 @@ def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tup
     (don't confuse with normal distributions. voxels without samples don't count as normal distributiondon't confuse with normal distributions. voxels without samples don't count as normal distributionss)
 
     Args:
-        dimensions (torch.Tensor): Dimensions in each axis (3)
+        dimensions (torch.Tensor): Dimensions in each axis (batch_size, 3)
         n_desired_voxels (int): Desired number of voxels
 
     Returns:
         voxel_size (float): Calculated voxel size
-        n_voxels (torch.Tensor): Number of voxels in each dimension (3)
+        n_voxels (torch.Tensor): Number of voxels in each dimension (batch_size, 3)
     """
 
-    # calculate the voxel size
-    voxel_size = torch.pow(torch.prod(dimensions) / n_desired_voxels, 1.0/3.0)
+    # calculate the voxel size (batch_size) (calculate the volume along the 3 dimensions and then calculate the cube root)
+    voxel_size = torch.pow(torch.prod(dimensions, dim=1) / n_desired_voxels, 1.0/3.0)
 
-    # calculate the number of voxels in each dimension
-    n_voxels = torch.ceil(dimensions / voxel_size)
+    # calculate the number of voxels in each dimension. the voxel_size is reshaped to (batch_size, 1) to allow broadcasting
+    n_voxels = torch.ceil(dimensions / voxel_size[:, None])
 
     return voxel_size, n_voxels
 
