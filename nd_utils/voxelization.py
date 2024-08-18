@@ -48,7 +48,7 @@ def find_point_cloud_limits(point_cloud: torch.Tensor) -> Tuple[torch.Tensor, to
 
     return min_coords, max_coords, dimensions
 
-def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tuple[float, torch.Tensor]:
+def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Calculate the voxel size considering the point cloud characteristics and desired number of voxels
     (don't confuse with normal distributions. voxels without samples don't count as normal distributiondon't confuse with normal distributions. voxels without samples don't count as normal distributionss)
@@ -58,7 +58,7 @@ def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tup
         n_desired_voxels (int): Desired number of voxels
 
     Returns:
-        voxel_size (float): Calculated voxel size
+        voxel_size (torch.Tensor): Calculated voxel size (batch_size)
         n_voxels (torch.Tensor): Number of voxels in each dimension (batch_size, 3)
     """
 
