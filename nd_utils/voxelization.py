@@ -70,19 +70,19 @@ def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tup
 
     return voxel_size, n_voxels
 
-def metric_to_voxel_space(points: torch.Tensor, voxel_size: float, n_voxels: torch.Tensor,
+def metric_to_voxel_space(points: torch.Tensor, voxel_size: torch.Tensor, n_voxels: torch.Tensor,
                           min_coords: torch.Tensor) -> torch.Tensor:
     """
     Map a point in metric space to voxel space.
 
     Args:
-        points (torch.Tensor): Coordinates of the points (n_points, 3)
-        voxel_size (float): Voxel size
-        n_voxels (torch.Tensor): Number of voxels in each dimension (3)
-        min_coords (torch.Tensor): Minimum coordinate values in metric space (3)
+        points (torch.Tensor): Coordinates of the points (batch_size, n_points, 3)
+        voxel_size (torch.Tensor): Voxel sizes (batch_size)
+        n_voxels (torch.Tensor): Number of voxels in each dimension (batch_size, 3)
+        min_coords (torch.Tensor): Minimum coordinate values in metric space (batch_size, 3)
 
     Returns:
-        voxel_idx (torch.Tensor): Voxel indices in each dimension (n_points, 3)
+        voxel_idx (torch.Tensor): Voxel indices in each dimension (batch_size, n_points, 3)
     """
 
     voxel_idx = torch.floor((points - min_coords) / voxel_size)
