@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 import open3d as o3d
+import numpy as np
 import os
 
 class ModelNet(Dataset):
@@ -73,4 +74,17 @@ class ModelNet(Dataset):
 
         # sample a point cloud from the mesh
         pcd = o3d.geometry.sample_points_uniformly(mesh, self.num_sampled_points)
+
+        # convert the point cloud to a tensor
+        pcd_np = np.asarray(pcd.points)
+        point_cloud = torch.tensor(pcd_np, dtype=torch.float32)
+
+        # get the class index
+        class_idx = -1
+        for idx, c in enumerate(self.classes):
+            if c == cname:
+                class_idx = idx
+                break
+
+        return point_cloud, class_idx
 
