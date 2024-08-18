@@ -33,12 +33,12 @@ def estimate_normal_distributions(points: torch.Tensor, n_desired_dists: int,
     Estimate normal distributions from the point coordinates.
 
     Args:
-        points (torch.Tensor): Point coordinates (n_points, 3)
+        points (torch.Tensor): Point coordinates (batch_size, n_points, 3)
         n_desired_dists (int): Desired number of normal distributions
 
     Returns:
-        means: Mean vectors (voxels_x, voxels_y, voxels_z, 3)
-        covs: Covariance matrices (voxels_x, voxels_y, voxels_z, 3, 3)
+        means: Mean vectors (batch_size, voxels_x, voxels_y, voxels_z, 3)
+        covs: Covariance matrices (batch_size, voxels_x, voxels_y, voxels_z, 3, 3)
     """
 
     # find the point cloud limits and ranges
@@ -54,22 +54,25 @@ def estimate_normal_distributions(points: torch.Tensor, n_desired_dists: int,
     covs = torch.zeros(torch.cat(n_voxels, torch.Tensor([3, 3])).int().tolist())
 
     # create a tensor of sample counts with shape (voxels_x, voxels_y, voxels_z)
-    sample_counts = torch.zeros(n_voxels.int().tolist())
+    sample_counts = torch.zeros(n_voxels.int().tolist()).int()
 
-    # get the voxel indices for each point
+    # get the voxel indices for each point with shape (n_points, 3)
     voxel_idxs = nd_utils.voxelization.metric_to_voxel_space(points, voxel_size, n_voxels, min_coords)
 
-    # update the sample counts
-    sample_counts = sample_counts.scatter_add(0, voxel_idxs, torch.ones_like(voxel_idxs[:, 0]))
+    # increment the sample counts for each voxel
+    sample_counts = sample_counts.scatter_add(0, voxel_idxs, torch.ones(voxel_idxs.size(0)).int())
 
     # calculate the means
-    means = means.scatter_add(0, voxel_idxs.unsqueeze(-1).expand(-1, 3), points)
-    means = means / sample_counts.unsqueeze(-1)
+    means = means.scatter_add(0, voxel_idxs.unsqueeze(1).expand(-1, 3, -1), points.unsqueeze(2).expand(-1, -1, 3))
 
     # calculate the covariances
-    diff = points - means[voxel_idxs[:, 0], voxel_idxs[:, 1], voxel_idxs[:, 2]]
-    cov_updates = diff.unsqueeze(-1) * diff.unsqueeze(-2)
-    covs = covs.scatter_add(0, voxel_idxs.unsqueeze(-1).unsqueeze(-1).expand(-1, 3, 3), cov_updates)
-    covs = covs / sample_counts.unsqueeze(-1).unsqueeze(-1).clamp(min=1)
+    covs = covs.scatter_add(0, voxel_idxs.unsqueeze(1).unsqueeze(1).expand(-1, 3, 3, -1),
+                            (points.unsqueeze(2).expand(-1, -1, 3) - means[voxel_idxs].unsqueeze(3)).unsqueeze(3))
+    
+    # divide the means by the sample counts
+    means = means / sample_counts.unsqueeze(3)
+
+    # divide the covariances by the sample counts
+    covs = covs / sample_counts.unsqueeze(3).unsqueeze(4)
 
     return means, covs
