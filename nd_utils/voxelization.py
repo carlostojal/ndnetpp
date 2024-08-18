@@ -94,18 +94,19 @@ def metric_to_voxel_space(points: torch.Tensor, voxel_size: torch.Tensor, n_voxe
     
     return voxel_idx
 
-def voxel_to_metric_space(voxels: torch.Tensor, voxel_size: float,
+def voxel_to_metric_space(voxels: torch.Tensor, voxel_size: torch.Tensor,
                           min_coords: torch.Tensor) -> torch.Tensor:
     """
     Map a voxel center to metric space.
 
     Args:
-        voxels (torch.Tensor): Coordinates of the voxels in voxel space (n_voxels, 3)
-        voxel_size (float): Voxel size
-        min_coords (torch.Tensor): Minimum coordinate values in metric space (3)
+        voxels (torch.Tensor): Coordinates of the voxels in voxel space (batch_size, n_voxels, 3)
+        voxel_size (torch.Tensor): Voxel size (batch_size)
+        min_coords (torch.Tensor): Minimum coordinate values in metric space (batch_size, 3)
 
     Returns:
         coords (torch.Tensor): Coordinates of the voxel centers in metric space (n_voxels, 3)
     """
-
+    
+    # get the voxel edge and add half a voxel and the offset
     return (voxels * voxel_size) + (voxel_size / 2.0) + min_coords
