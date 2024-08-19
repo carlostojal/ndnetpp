@@ -9,17 +9,17 @@ class ModelNet(Dataset):
     ModelNet dataset class.
     """
 
-    def __init__(self, root_dir: str, stage: str = "train", num_classes: int = 40, num_sampled_points: int = 10000) -> None:
+    def __init__(self, root_dir: str, stage: str = "train", num_sampled_points: int = 10000) -> None:
         """
         ModelNet class constructor.
 
         Args:
-            num_classes (int): Number of dataset classes.
+            root_dir (str): Root directory of the dataset.
+            stage (str): Training stage (train/test).
             num_sampled_points (int): Number of points sampled from the mesh.
         """
         self.root_dir = root_dir
         self.stage = stage
-        self.num_classes = num_classes
         self.num_sampled_points = num_sampled_points
 
         if stage != "train" and stage != "test":
