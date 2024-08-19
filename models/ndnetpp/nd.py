@@ -25,7 +25,7 @@ SOFTWARE.
 
 import torch
 from torch import nn
-import nd_utils.voxelization
+import nd_utils
 
 class VoxelizerFunction(torch.autograd.Function):
     @staticmethod
@@ -43,12 +43,12 @@ class VoxelizerFunction(torch.autograd.Function):
             torch.Tensor: Normal distribution covariances (N1, 3, 3).
         """
 
-        # find the point cloud limits and dimension in each axis
-        min_coords, max_coords, dimensions = nd_utils.voxelization.find_point_cloud_limits(input)
+        # estimate the normal distributions
+        voxels = nd_utils.normal_distributions.estimate_normal_distributions(input, num_desired_dists,
+                num_desired_dists_thres)
 
-        voxel_size, n_voxels = nd_utils.voxelization.calculate_voxel_size(dimensions, num_desired_dists*(1.0+num_desired_dists_thres))
+        # TODO: prune the extra normal distributions based on the Kullback-Leibler divergences
 
-        # TODO
         raise NotImplementedError("VoxelizerFunciton.forward is not implemented.")
 
     @staticmethod
