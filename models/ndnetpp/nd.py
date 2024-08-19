@@ -62,7 +62,8 @@ class VoxelizerFunction(torch.autograd.Function):
         Returns:
             torch.Tensor: gradients propagated to the points corresponding to each voxel (N).
         """
-        # TODO
+
+        # TODO: distribute the voxel gradients to the corresponding points
         raise NotImplementedError("VoxelizerFunction.backward is not implemented.")
 
 class Voxelizer(nn.Module):
@@ -77,13 +78,7 @@ class Voxelizer(nn.Module):
         # apply the autograd function
         return VoxelizerFunction.apply(x, self.num_desired_dists, self.num_desired_dists_thres)
 
+    def backward(self, x_grad):
+        # TODO
+        raise NotImplementedError("Voxelizer.backward is not implemented.")
 
-class Pruner(nn.Module):
-    """
-    Prune the normal distributions based on the Kulback-Leibler divergence between the two distributions.
-    """
-    def __init__(self):
-        pass
-
-    def forward(self, x):
-        return x
