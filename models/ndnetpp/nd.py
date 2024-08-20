@@ -26,7 +26,8 @@ SOFTWARE.
 import torch
 from torch import nn
 from typing import Tuple
-import nd_utils
+import nd_utils.voxelization
+import nd_utils.normal_distributions
 
 class VoxelizerFunction(torch.autograd.Function):
     @staticmethod
