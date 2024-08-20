@@ -48,25 +48,29 @@ def find_point_cloud_limits(point_cloud: torch.Tensor) -> Tuple[torch.Tensor, to
 
     return min_coords, max_coords, dimensions
 
-def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tuple[torch.Tensor, torch.Tensor]:
+def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tuple[float, torch.Tensor]:
     """
-    Calculate the voxel size considering the point cloud characteristics and desired number of voxels
-    (don't confuse with normal distributions. voxels without samples don't count as normal distributiondon't confuse with normal distributions. voxels without samples don't count as normal distributionss)
+    Calculate the voxel size considering the point cloud characteristics and desired number of voxels batch-wise
+    (don't confuse with normal distributions. voxels without samples don't count as normal distributions).
+    The smallest voxel size of the batch is used for all batch samples to ensure compatability.
 
     Args:
         dimensions (torch.Tensor): Dimensions in each axis (batch_size, 3)
         n_desired_voxels (int): Desired number of voxels
 
     Returns:
-        voxel_size (torch.Tensor): Calculated voxel size (batch_size)
-        n_voxels (torch.Tensor): Number of voxels in each dimension (batch_size, 3)
+        voxel_size (float): Calculated voxel size
+        n_voxels (torch.Tensor): Number of voxels in each dimension (3)
     """
 
+    # find a global bounding box (capable of containing all point clouds within)
+    dimensions_global = dimensions.max(dim=0).values
+
     # calculate the voxel size (batch_size) (calculate the volume along the 3 dimensions and then calculate the cube root)
-    voxel_size = torch.pow(torch.prod(dimensions, dim=1) / n_desired_voxels, 1.0/3.0)
+    voxel_size = torch.pow(torch.prod(dimensions_global) / n_desired_voxels, 1.0/3.0).item()
 
     # calculate the number of voxels in each dimension. the voxel_size is reshaped to (batch_size, 1) to allow broadcasting
-    n_voxels = torch.ceil(dimensions / voxel_size[:, None]).int()
+    n_voxels = torch.ceil(dimensions_global / voxel_size).int()
 
     return voxel_size, n_voxels
 
