@@ -52,7 +52,7 @@ def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tup
     """
     Calculate the voxel size considering the point cloud characteristics and desired number of voxels batch-wise
     (don't confuse with normal distributions. voxels without samples don't count as normal distributions).
-    The smallest voxel size of the batch is used for all batch samples to ensure compatability.
+    The largest bounding box is considered to ensure compatibility.
 
     Args:
         dimensions (torch.Tensor): Dimensions in each axis (batch_size, 3)
