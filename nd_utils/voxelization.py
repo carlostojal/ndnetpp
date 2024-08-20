@@ -26,7 +26,7 @@ SOFTWARE.
 import torch
 from typing import Tuple
 
-def find_point_cloud_limits(point_cloud: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+def find_point_cloud_limits(point_cloud: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Find the limits of the point cloud coordinates in each axis.
 
@@ -66,7 +66,7 @@ def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tup
     voxel_size = torch.pow(torch.prod(dimensions, dim=1) / n_desired_voxels, 1.0/3.0)
 
     # calculate the number of voxels in each dimension. the voxel_size is reshaped to (batch_size, 1) to allow broadcasting
-    n_voxels = torch.ceil(dimensions / voxel_size[:, None])
+    n_voxels = torch.ceil(dimensions / voxel_size[:, None]).int()
 
     return voxel_size, n_voxels
 
@@ -87,7 +87,7 @@ def metric_to_voxel_space(points: torch.Tensor, voxel_size: torch.Tensor, n_voxe
 
     voxel_idx = torch.floor((points - min_coords) / voxel_size)
 
-    # check out of bounds indices
+    # check out-of-bounds indices
     out_of_bounds = (voxel_idx < 0) | (voxel_idx >= n_voxels)
     if torch.any(out_of_bounds):
         raise ValueError("Point coordinates out of point cloud bounds.")
