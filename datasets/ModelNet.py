@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 import open3d as o3d
 import numpy as np
 import os
+from typing import Tuple
 
 class ModelNet(Dataset):
     """
@@ -34,12 +35,14 @@ class ModelNet(Dataset):
             raise FileNotFoundError("The dataset path does not exist.")
 
         # get the class names
-        self.classes = os.listdir(root_dir).sort()
+        self.classes = os.listdir(root_dir)
+        self.classes.sort()
 
         # iterate the classes
-        for c in classes:
+        for c in self.classes:
             # get the files list
-            l = os.listdir(os.path.join(root_dir, c, stage)).sort()
+            l = os.listdir(os.path.join(root_dir, c, stage))
+            l.sort()
             # index the files by class
             self.files_per_class[c] = l
             # add to the global list of files
@@ -51,7 +54,7 @@ class ModelNet(Dataset):
         """
         return len(self.files)
 
-    def __getitem__(self, idx: int) -> torch.Tensor, int:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
         """
         Get a ModelNet dataset sample.
 
