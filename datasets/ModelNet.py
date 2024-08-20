@@ -75,8 +75,8 @@ class ModelNet(Dataset):
         # read the mesh
         mesh = o3d.io.read_triangle_mesh(fname)
 
-        # sample a point cloud from the mesh
-        pcd = o3d.geometry.sample_points_uniformly(mesh, self.num_sampled_points)
+        # sample a point cloud from the mesh (https://www.open3d.org/docs/release/tutorial/geometry/mesh.html#Sampling)
+        pcd = mesh.sample_points_uniformly(number_of_points=self.num_sampled_points)
 
         # convert the point cloud to a tensor
         pcd_np = np.asarray(pcd.points)
