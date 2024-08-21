@@ -26,22 +26,22 @@ SOFTWARE.
 import torch
 from typing import Tuple
 
-def find_point_cloud_limits(point_cloud: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def find_point_cloud_limits(point_clouds: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
-    Find the limits of the point cloud coordinates in each axis.
+    Find the batch limits of the point cloud coordinates in each axis.
 
     Args:
-        point_cloud (torch.Tensor): Point cloud data (batch_size, n_points, 3)
+        point_clouds (torch.Tensor): Point clouds data (batch_size, n_points, 3)
 
     Returns:
-        torch.Tensor: minimum limits (batch_size, 3)
-        torch.Tensor: maximum limits (batch_size, 3)
-        torch.Tensor: dimension in each axis (batch_size, 3)
+        torch.Tensor: minimum limits (3)
+        torch.Tensor: maximum limits (3)
+        torch.Tensor: dimension in each axis (3)
     """
 
     # find the limits
-    max_coords = torch.max(point_cloud, dim=1).values
-    min_coords = torch.min(point_cloud, dim=1).values
+    max_coords = torch.amax(point_clouds, dim=(0,1))
+    min_coords = torch.amin(point_clouds, dim=(0,1))
 
     # calculate the dimensions in each axis (max - min)
     dimensions = max_coords - min_coords
