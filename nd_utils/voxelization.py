@@ -50,12 +50,11 @@ def find_point_cloud_limits(point_clouds: torch.Tensor) -> Tuple[torch.Tensor, t
 
 def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tuple[float, torch.Tensor]:
     """
-    Calculate the voxel size considering the point cloud characteristics and desired number of voxels batch-wise
+    Calculate the voxel size considering the point cloud characteristics and desired number of voxels
     (don't confuse with normal distributions. voxels without samples don't count as normal distributions).
-    The largest bounding box is considered to ensure compatibility.
 
     Args:
-        dimensions (torch.Tensor): Dimensions in each axis (batch_size, 3)
+        dimensions (torch.Tensor): Dimensions in each axis (3)
         n_desired_voxels (int): Desired number of voxels
 
     Returns:
@@ -63,18 +62,15 @@ def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tup
         n_voxels (torch.Tensor): Number of voxels in each dimension (3)
     """
 
-    # find a global bounding box (capable of containing all point clouds within)
-    dimensions_global = dimensions.max(dim=0).values
-
     # calculate the voxel size (batch_size) (calculate the volume along the 3 dimensions and then calculate the cube root)
-    voxel_size = torch.pow(torch.prod(dimensions_global) / n_desired_voxels, 1.0/3.0).item()
+    voxel_size = torch.pow(torch.prod(dimensions) / n_desired_voxels, 1.0/3.0).item()
 
     # calculate the number of voxels in each dimension. the voxel_size is reshaped to (batch_size, 1) to allow broadcasting
-    n_voxels = torch.ceil(dimensions_global / voxel_size).int()
+    n_voxels = torch.ceil(dimensions / voxel_size).int()
 
     return voxel_size, n_voxels
 
-def metric_to_voxel_space(points: torch.Tensor, voxel_size: torch.Tensor, n_voxels: torch.Tensor,
+def metric_to_voxel_space(points: torch.Tensor, voxel_size: float, n_voxels: torch.Tensor,
                           min_coords: torch.Tensor) -> torch.Tensor:
     """
     Map a point in metric space to voxel space.
