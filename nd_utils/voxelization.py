@@ -85,7 +85,7 @@ def metric_to_voxel_space(points: torch.Tensor, voxel_size: float, n_voxels: tor
         voxel_idx (torch.Tensor): Voxel indices in each dimension (batch_size, n_points, 3)
     """
 
-    voxel_idx = torch.floor((points - min_coords) / voxel_size).int()
+    voxel_idx = torch.floor((points - min_coords) / voxel_size).long()
 
     # check out-of-bounds indices
     out_of_bounds = (voxel_idx < 0) | (voxel_idx >= n_voxels)
