@@ -28,7 +28,7 @@ from typing import Tuple
 import nd_utils
 
 def estimate_normal_distributions(points: torch.Tensor, n_desired_dists: int,
-                                  n_desired_dists_thres: float = 0.2) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+                                  n_desired_dists_thres: float = 0.2) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Estimate normal distributions from the point coordinates.
 
@@ -43,45 +43,54 @@ def estimate_normal_distributions(points: torch.Tensor, n_desired_dists: int,
         sample_counts (torch.Tensor): Sample counts for each voxel (batch_size, voxels_x, voxels_y, voxels_z)
     """
 
-    # TODO: fix fuckups in batch dimensions and other things
-
     # find the point cloud limits and ranges
     min_coords, max_coords, dimensions = nd_utils.voxelization.find_point_cloud_limits(points)
 
-    # calculate the voxel size
+    # calculate the batch-wise voxel size and number of voxels
     voxel_size, n_voxels = nd_utils.voxelization.calculate_voxel_size(dimensions, int(n_desired_dists*(1.0+n_desired_dists_thres)))
 
     # create a tensor of means with shape (batch_size, voxels_x, voxels_y, voxels_z, 3)
-    means = torch.zeros(torch.cat((torch.tensor([points.shape[0]]), n_voxels, torch.tensor([[3]])), dim=1).int().tolist()[0])
+    means = torch.zeros(torch.cat((torch.tensor([points.shape[0]]), n_voxels, torch.tensor([3]))).int().tolist(), device=points.device)
 
     # create a tensor of covariances with shape (batch_size, voxels_x, voxels_y, voxels_z, 3, 3)
-    covs = torch.zeros(torch.cat((torch.tensor([points.shape[0]]), n_voxels, torch.tensor([[3, 3]])), dim=1).int().tolist())
+    covs = torch.zeros(torch.cat((torch.tensor([points.shape[0]]), n_voxels, torch.tensor([3, 3]))).int().tolist(), device=points.device)
 
     # create a tensor of sample counts with shape (batch_size, voxels_x, voxels_y, voxels_z)
-    sample_counts = torch.zeros(n_voxels.tolist()).int()
+    sample_counts = torch.zeros(torch.cat((torch.tensor([points.shape[0]]), n_voxels)).tolist(), device=points.device).int()
 
     # get the voxel indices for each point with shape (batch_size, n_points, 3)
     voxel_idxs = nd_utils.voxelization.metric_to_voxel_space(points, voxel_size, n_voxels, min_coords)
 
-    # increment the sample counts for each voxel
-    sample_counts = sample_counts.scatter_add_(1, voxel_idxs, torch.ones(voxel_idxs.size(1)).int())
+    # create indices for increments
+    batch_size = points.shape[0]
+    n_points = points.shape[1]
+    batch_indices = torch.arange(batch_size, device=points.device).view(-1, 1).expand_as(voxel_idxs[..., 0]).to(points.device)
+    indices = (batch_indices.flatten(),
+               voxel_idxs[..., 0].flatten(),
+               voxel_idxs[..., 1].flatten(),
+               voxel_idxs[..., 2].flatten())
+
+    # increment the sample_counts for each voxel at the indices enumerated by indices
+    inc = torch.ones(n_points*batch_size, device=points.device).int()
+    sample_counts.index_put_(indices, inc, accumulate=True)
 
     # calculate the means
-    means = means.scatter_add_(1, voxel_idxs.unsqueeze(1).expand(-1, 3, -1), points.unsqueeze(2).expand(-1, -1, 3))
+    means.index_put_(indices, points.view(-1, 3), accumulate=True)
+    means = means / sample_counts.unsqueeze(-1) # unsqueeze the point dimension
 
-    # calculate the covariances
-    covs = covs.scatter_add_(1, voxel_idxs.unsqueeze(1).unsqueeze(1).expand(-1, 3, 3, -1),
-                            (points.unsqueeze(2).expand(-1, -1, 3) - means[voxel_idxs].unsqueeze(3)).unsqueeze(3))
-    
-    # divide the means by the sample counts
-    means = means / sample_counts.unsqueeze(3)
+    # TODO: calculate the covariances
+    deviations = points - means[indices].view(batch_size, n_points, 3)
+    for i in range(3):
+        for j in range(3):
+            covs[..., i, j].index_put_(indices, (deviations[..., i] * deviations[..., j]).view(-1), accumulate=True)
+    covs = covs / sample_counts.unsqueeze(-1).unsqueeze(-1)
+    # flatten the covariance matrix
+    covs = covs.reshape(*covs.shape[:-2], -1)
 
-    # divide the covariances by the sample counts
-    covs = covs / sample_counts.unsqueeze(3).unsqueeze(4)
+    # concatenate the means and covariances along the mean/flattened covariance dimension (last dimension)
+    dists = torch.cat((means, covs), dim=-1)
 
-    # TODO: concatenate the means and covariances
-
-    return means, covs, sample_counts
+    return dists, sample_counts
 
 def prune_normal_distributions(means: torch.Tensor, covs: torch.Tensor, valid_dists: torch.Tensor, n_desired_dists: int) -> torch.Tensor:
     """
