@@ -77,15 +77,15 @@ def metric_to_voxel_space(points: torch.Tensor, voxel_size: float, n_voxels: tor
 
     Args:
         points (torch.Tensor): Coordinates of the points (batch_size, n_points, 3)
-        voxel_size (torch.Tensor): Voxel sizes (batch_size)
-        n_voxels (torch.Tensor): Number of voxels in each dimension (batch_size, 3)
-        min_coords (torch.Tensor): Minimum coordinate values in metric space (batch_size, 3)
+        voxel_size (float): Voxel size
+        n_voxels (torch.Tensor): Number of voxels in each dimension (3)
+        min_coords (torch.Tensor): Minimum coordinate values in metric space (3)
 
     Returns:
         voxel_idx (torch.Tensor): Voxel indices in each dimension (batch_size, n_points, 3)
     """
 
-    voxel_idx = torch.floor((points - min_coords) / voxel_size)
+    voxel_idx = torch.floor((points - min_coords) / voxel_size).int()
 
     # check out-of-bounds indices
     out_of_bounds = (voxel_idx < 0) | (voxel_idx >= n_voxels)
