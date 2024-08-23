@@ -26,44 +26,42 @@ SOFTWARE.
 import torch
 from torch import nn
 from typing import Tuple
+import time
 import nd_utils.voxelization
 import nd_utils.normal_distributions
 
 class VoxelizerFunction(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, input: torch.Tensor, num_desired_dists: int, num_desired_dists_thres: float = 0.2) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(ctx, input: torch.Tensor, num_desired_dists: int, num_desired_dists_thres: float = 0.2) -> Tuple[torch.Tensor]:
         """
         Voxelize the input point cloud.
 
         Args:
-            input (torch.Tensor): Input point cloud of shape (N, 3).
+            input (torch.Tensor): Input point cloud of shape (batch_size, n_points, 3).
             num_desired_dists (int): Number of desired normal distributions.
             num_desired_dists_thres (float): Threshold for the number of desired normal distributions.
 
         Returns:
-            torch.Tensor: Normal distribution means (N1, 3).
-            torch.Tensor: Normal distribution covariances (N1, 3, 3).
+            torch.Tensor: Normal distribution means and covariances (n_desired_dists, 12).
         """
 
         # estimate the normal distributions
-        means, covs, valid_dists = nd_utils.normal_distributions.estimate_normal_distributions(input, num_desired_dists,
-                num_desired_dists_thres)
+        start = time.time()
+        dists, sample_counts = nd_utils.normal_distributions.estimate_normal_distributions(input, num_desired_dists, num_desired_dists_thres)
+        end = time.time()
+        print(f"Normal distributions estimation time {dists.device}: {end - start}s - {(end-start)*1000}ms - {1.0 / (end-start)}Hz")
 
         # prune the extra normal distributions based on the Kullback-Leibler divergences
-        valid_dists = nd_utils.normal_distributions.prune_normal_distributions(means, covs, valid_dists, num_desired_dists)
+        # valid_dists = nd_utils.normal_distributions.prune_normal_distributions(means, covs, valid_dists, num_desired_dists)
 
-        # filter the tensors to only contain the valid normal distributions
-        # create a filter for the means adding the dimension of the coordinates
-        means_filter = valid_dists.unsqueeze(-1).expand(-1, -1, -1, -1, 3)
-        means_filtered = means[means_filter]
-        # create a filter for the covariances adding the 2 dimensions of the covariance matrix
-        covs_filter = valid_dists.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, -1, -1, 3, 3)
-        covs_filtered = covs[covs_filter]
+        # filter the tensors to only contain the valid normal distributions (sample counts >= 2)
+        batch_size = input.shape[0]
+        valid_dists = dists[sample_counts > 1].view(batch_size, -1, 3)
 
         # TODO: save the context needed for the backward pass
 
-        # return the filtered means and covariances
-        return means_filtered, covs_filtered
+        # return the filtered normal distributions
+        return valid_dists
 
     @staticmethod
     def backward(ctx, dists_grad: torch.Tensor):
