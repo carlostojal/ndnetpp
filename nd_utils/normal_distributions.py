@@ -49,14 +49,16 @@ def estimate_normal_distributions(points: torch.Tensor, n_desired_dists: int,
     # calculate the batch-wise voxel size and number of voxels
     voxel_size, n_voxels = nd_utils.voxelization.calculate_voxel_size(dimensions, int(n_desired_dists*(1.0+n_desired_dists_thres)))
 
+    grid_dim = torch.cat((torch.tensor([points.shape[0]]), n_voxels.cpu())).int()
+
     # create a tensor of means with shape (batch_size, voxels_x, voxels_y, voxels_z, 3)
-    means = torch.zeros(torch.cat((torch.tensor([points.shape[0]]), n_voxels, torch.tensor([3]))).int().tolist(), device=points.device)
+    means = torch.zeros(torch.cat((grid_dim, torch.tensor([3]))).int().tolist(), device=points.device)
 
     # create a tensor of covariances with shape (batch_size, voxels_x, voxels_y, voxels_z, 3, 3)
-    covs = torch.zeros(torch.cat((torch.tensor([points.shape[0]]), n_voxels, torch.tensor([3, 3]))).int().tolist(), device=points.device)
+    covs = torch.zeros(torch.cat((grid_dim, torch.tensor([3, 3]))).int().tolist(), device=points.device)
 
     # create a tensor of sample counts with shape (batch_size, voxels_x, voxels_y, voxels_z)
-    sample_counts = torch.zeros(torch.cat((torch.tensor([points.shape[0]]), n_voxels)).tolist(), device=points.device).int()
+    sample_counts = torch.zeros(grid_dim.tolist(), device=points.device).int()
 
     # get the voxel indices for each point with shape (batch_size, n_points, 3)
     voxel_idxs = nd_utils.voxelization.metric_to_voxel_space(points, voxel_size, n_voxels, min_coords)
