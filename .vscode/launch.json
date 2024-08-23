@@ -15,6 +15,18 @@
                 "--path", 
                 "/media/lei_proj_inf/Data/datasets/ModelNet40"
             ]
+        },
+        {
+            "name": "Fix ModelNet",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "program": "tools/fix_modelnet.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--path", 
+                "/media/lei_proj_inf/Data/datasets/ModelNet40"
+            ]
         }
     ]
 }
