@@ -26,10 +26,13 @@ SOFTWARE.
 import torch
 from torch.utils.data import DataLoader
 from argparse import ArgumentParser
-from datasets.ModelNet import ModelNet
 import open3d as o3d
+import numpy as np
 import sys
+sys.path.append(".")
 from models.ndnetpp.nd import Voxelizer
+from models.ndnetpp.point_clouds import PointCloudNorm
+from datasets.ModelNet import ModelNet
 
 if __name__ == '__main__':
 
@@ -39,14 +42,13 @@ if __name__ == '__main__':
     parser.add_argument("--path", type=str, required=True)
     parser.add_argument("--n_points", type=int, required=False, default=10000)
     parser.add_argument("--n_dists", type=int, required=False, default=1000)
+    parser.add_argument("--n_dists_thres", type=float, required=False, default=20.0)
     args = parser.parse_args()
 
     # check available devices
-    device = None
+    device = device = torch.device("cpu")
     if torch.cuda.is_available():
         device = torch.device("cuda")
-    else:
-        device = torch.device("cpu")
 
     # create the dataset and data loader instances
     valid_datasets = ("modelnet")
@@ -55,23 +57,28 @@ if __name__ == '__main__':
         raise RuntimeError(f"Invalid dataset {args.dataset}. Choose one from {valid_datasets}")
     if args.dataset == "modelnet":
         dataset = ModelNet(args.path, "test", num_sampled_points=int(args.n_points))
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=1)
+    dataloader = DataLoader(dataset, batch_size=2, shuffle=True, num_workers=1)
 
     # pick the first sample of the dataset
     sample, _ = next(iter(dataloader))
+    sample = sample.to(device)
 
-    # create a voxelizer layer and pass the point cloud through it
-    voxelizer = Voxelizer(int(args.n_dists))
+    # create a normalizer and a voxelizer layer and pass the point cloud through it
+    normalizer = PointCloudNorm()
+    voxelizer = Voxelizer(int(args.n_dists), float(args.n_dists_thres))
+    sample = normalizer(sample)
     voxels = voxelizer(sample)
 
     # remove the batch dimension and keep only the first 3 columns (mean vector)
-    voxels = voxels.squeeze()[:3]
+    voxels = voxels[0][:3]
 
     # visualize using open3d
     # convert the tensor to a numpy array
-    sample_np = sample.cpu().numpy()
+    sample_np = voxels.cpu().numpy()
+    print(sample_np.shape)
     # convert the numpy array to an open3d point cloud
-    sample_o3d = o3d.geometry.PointCloud(sample_np)
+    sample_o3d = o3d.geometry.PointCloud()
+    sample_o3d.points = o3d.utility.Vector3dVector(sample_np)
     # open a visualizer
     o3d.visualization.draw_geometries([sample_o3d])
 
