@@ -43,9 +43,15 @@ class PointCloudNorm(torch.nn.Module):
             norm_points (torch.Tensor): Output point clouds shaped (batch_size, n_points, 3).
         """
 
-        # find the limits in each axis
-        max_coords = points.max(dim=1)[0]
-        min_coords = points.min(dim=1)[0]
+        # compute the centroid
+        centroid = points.mean(dim=1)
 
-        # normalize to unit sphere
-        return (points - min_coords) / (max_coords - min_coords) - 0.5
+        # translate to the centroid
+        points = points - centroid.unsqueeze(1)
+
+        # compute the maximum distance to the centroid
+        max_dist = torch.sqrt((points**2).sum(dim=2)).max(dim=1)[0]
+
+        # scale to the maximum distance
+        return points / max_dist.unsqueeze(1).unsqueeze(2)
+    
