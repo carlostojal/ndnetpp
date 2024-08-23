@@ -69,17 +69,21 @@ if __name__ == '__main__':
     sample = normalizer(sample)
     voxels = voxelizer(sample)
 
-    # remove the batch dimension and keep only the first 3 columns (mean vector)
-    voxels = voxels[0][:3]
+    # iterate the batch
+    for i in range(voxels.shape[0]):
+        # extract the batch
+        batch_voxels = voxels[i]
+        # slice the mean
+        batch_voxels = batch_voxels[...,:3]
 
-    # visualize using open3d
-    # convert the tensor to a numpy array
-    sample_np = voxels.cpu().numpy()
-    print(sample_np.shape)
-    # convert the numpy array to an open3d point cloud
-    sample_o3d = o3d.geometry.PointCloud()
-    sample_o3d.points = o3d.utility.Vector3dVector(sample_np)
-    # open a visualizer
-    o3d.visualization.draw_geometries([sample_o3d])
+        # visualize using open3d
+        # convert the tensor to a numpy array
+        sample_np = batch_voxels.cpu().numpy()
+        print(sample_np.shape)
+        # convert the numpy array to an open3d point cloud
+        sample_o3d = o3d.geometry.PointCloud()
+        sample_o3d.points = o3d.utility.Vector3dVector(sample_np)
+        # open a visualizer
+        o3d.visualization.draw_geometries([sample_o3d])
 
     sys.exit(0)
