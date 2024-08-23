@@ -47,21 +47,32 @@ class VoxelizerFunction(torch.autograd.Function):
 
         # estimate the normal distributions
         start = time.time()
+        # normal distributions shaped (batch_size, voxels_x, voxels_y, voxels_z, 12)
         dists, sample_counts = nd_utils.normal_distributions.estimate_normal_distributions(input, num_desired_dists, num_desired_dists_thres)
         end = time.time()
         print(f"Normal distributions estimation time {dists.device}: {end - start}s - {(end-start)*1000}ms - {1.0 / (end-start)}Hz")
 
-        # prune the extra normal distributions based on the Kullback-Leibler divergences
-        # valid_dists = nd_utils.normal_distributions.prune_normal_distributions(means, covs, valid_dists, num_desired_dists)
-
-        # filter the tensors to only contain the valid normal distributions (sample counts >= 2)
+        # get the batch size
         batch_size = input.shape[0]
-        valid_dists = dists[sample_counts > 1].view(batch_size, -1, 3)
+
+        # create a tensor for the clean normal distributions shaped (batch_size, n_desired_dists, 12)
+        clean_dists = torch.empty((batch_size, num_desired_dists, 12), device=input.device)
+
+        # remove random normal distributions until the desired number is reached in each batch
+        for b in range(batch_size):
+            # TODO: review this
+            batch_dists = dists[b]
+            batch_sample_counts = sample_counts[b]
+            valid_dists = batch_dists[batch_sample_counts > 1]
+            n_dists = valid_dists.shape[0]
+            indices_to_keep = torch.randperm(n_dists, device=input.device)[:num_desired_dists]
+            valid_dists = valid_dists[indices_to_keep]
+            clean_dists[b] = valid_dists.view(-1, 12)
 
         # TODO: save the context needed for the backward pass
 
         # return the filtered normal distributions
-        return valid_dists
+        return clean_dists
 
     @staticmethod
     def backward(ctx, dists_grad: torch.Tensor):
