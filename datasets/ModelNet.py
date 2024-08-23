@@ -92,10 +92,12 @@ class ModelNet(Dataset):
         """
         # get the class name
         fname_short = self.files[idx]
-        cname = fname_short.split("_")[0]
+        cname = "_".join(fname_short.split("_")[:-1])
 
         # build the complete filename
         fname = os.path.join(self.root_dir, cname, self.stage, fname_short)
+
+        # print(f"Reading file {fname}")
 
         # read the mesh
         mesh = o3d.io.read_triangle_mesh(fname)
