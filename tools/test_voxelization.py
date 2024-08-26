@@ -84,6 +84,7 @@ if __name__ == '__main__':
         sample_o3d = o3d.geometry.PointCloud()
         sample_o3d.points = o3d.utility.Vector3dVector(sample_np)
         # open a visualizer
-        o3d.visualization.draw_geometries([sample_o3d])
+        coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0, origin=[0, 0, 0])
+        o3d.visualization.draw_geometries([sample_o3d, coordinate_frame])
 
     sys.exit(0)
