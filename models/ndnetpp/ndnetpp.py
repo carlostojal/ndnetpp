@@ -26,6 +26,8 @@ SOFTWARE.
 import torch
 from torch import nn
 from typing import Any, List
+from ndnetpp.nd import Voxelizer
+from ndnetpp.point_clouds import PointCloudNorm
 
 class NDNetppBackbone(nn.Module):
     """
@@ -37,6 +39,9 @@ class NDNetppBackbone(nn.Module):
         
         self.num_nds = conf.backbone.num_nds
         self.voxel_sizes = conf.backbone.voxel_sizes
+
+        # create the point cloud normalization layer
+        self.pcd_norm = PointCloudNorm()
 
         # TODO: generate the ND layers
         nd_list: List[nn.Module] = []
@@ -60,6 +65,7 @@ class NDNetppBackbone(nn.Module):
             torch.Tensor: point cloud feature map shaped (batch_size, feature_dim, distsN)
         """
 
+        x = self.pcd_norm(x)
         x = self.nd_layers(x)
 
         return x   
@@ -74,8 +80,10 @@ class NDNetppBackbone(nn.Module):
             feature_dims (List[int]): List of PointNet feature dimensions.
         
         Returns:
-            nn.Module: The ND module built.
+            nn.Module: The ND module.
         """
+
+
         
         raise NotImplementedError("ND-Net++ backbone not implemented.")
     
