@@ -43,14 +43,13 @@ class NDNetppBackbone(nn.Module):
         # create the point cloud normalization layer
         self.pcd_norm = PointCloudNorm()
 
-        # TODO: generate the ND layers
-        nd_list: List[nn.Module] = []
+        # generate the ND layers
+        self.nd_layers: List[nn.Module] = []
         for i in range(conf.backbone.num_nd_layers):
             nd_layer = self._generate_nd_layer(conf.backbone.num_nds[i],
                                                conf.backbone.voxel_sizes[i],
                                                conf.backbone.pointnet_feature_dims[i])
-            nd_list.append(nd_layer)
-        self.nd_layers = nn.Sequential(*nd_list)
+            self.nd_layers.append(nd_layer)
 
         raise NotImplementedError("ND-Net++ backbone not implemented.")
     
@@ -66,7 +65,18 @@ class NDNetppBackbone(nn.Module):
         """
 
         x = self.pcd_norm(x)
-        x = self.nd_layers(x)
+
+        """
+        TODO: the point coordinates are passed between ND modules just for filtering/clustering purposes
+        On subsequent ND modules the features are used
+        """
+
+        # iterate the ND layers
+        for i, nd_layer in enumerate(self.nd_layers):
+            # extract the first 3 channels of x
+            x = x[:,:3,:]
+            # pass through the ND layer
+            features, x = nd_layer(x)
 
         return x   
     
