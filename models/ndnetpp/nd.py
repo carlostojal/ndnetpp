@@ -33,14 +33,14 @@ import nd_utils.point_clouds
 
 class VoxelizerFunction(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, input: torch.Tensor, num_desired_dists: int, num_desired_dists_thres: float = 0.2) -> Tuple[torch.Tensor]:
+    def forward(ctx, input: torch.Tensor, num_desired_dists: int, voxel_size: float) -> Tuple[torch.Tensor]:
         """
         Voxelize the input point cloud.
 
         Args:
             input (torch.Tensor): Input point cloud of shape (batch_size, n_points, 3).
             num_desired_dists (int): Number of desired normal distributions.
-            num_desired_dists_thres (float): Threshold for the number of desired normal distributions.
+            voxel_size (float): Size of the edge of each voxel.
 
         Returns:
             torch.Tensor: Normal distribution means and covariances (n_desired_dists, 12).
@@ -49,7 +49,7 @@ class VoxelizerFunction(torch.autograd.Function):
         # estimate the normal distributions
         start = time.time()
         # normal distributions shaped (batch_size, voxels_x, voxels_y, voxels_z, 12)
-        dists, _, min_coords, voxel_size = nd_utils.normal_distributions.estimate_normal_distributions(input, num_desired_dists)
+        dists, _, min_coords, voxel_size = nd_utils.normal_distributions.estimate_normal_distributions_with_size(input, voxel_size)
         end = time.time()
         print(f"Normal distributions estimation time {dists.device}: {end - start}s - {(end-start)*1000}ms - {1.0 / (end-start)}Hz")
 
