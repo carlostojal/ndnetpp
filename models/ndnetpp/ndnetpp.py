@@ -34,10 +34,18 @@ class NDNetppBackbone(nn.Module):
     
     def __init__(self, conf: Any) -> None:
         super().__init__()
-        self.conf = conf
+        
+        self.num_nds = conf.backbone.num_nds
+        self.voxel_sizes = conf.backbone.voxel_sizes
 
-        # TODO: generate ND layers
-        # TODO: generate T-Nets
+        # TODO: generate the ND layers
+        nd_list: List[nn.Module] = []
+        for i in range(conf.backbone.num_nd_layers):
+            nd_layer = self._generate_nd_layer(conf.backbone.num_nds[i],
+                                               conf.backbone.voxel_sizes[i],
+                                               conf.backbone.pointnet_feature_dims[i])
+            nd_list.append(nd_layer)
+        self.nd_layers = nn.Sequential(*nd_list)
 
         raise NotImplementedError("ND-Net++ backbone not implemented.")
     
@@ -46,24 +54,51 @@ class NDNetppBackbone(nn.Module):
         Forward pass of the NDNet++ backbone.
         
         Args:
-        - x (torch.Tensor): the input point cloud, shaped (batch_size, point_dim, num_points)
+            x (torch.Tensor): the input point cloud, shaped (batch_size, point_dim, num_points)
         
         Returns:
-        - torch.Tensor: point cloud feature map shaped (batch_size, feature_dim, distsN)
+            torch.Tensor: point cloud feature map shaped (batch_size, feature_dim, distsN)
         """
         
         raise NotImplementedError("ND-Net++ backbone not implemented.")
     
-    def _generate_nd_layer(self, n_point_samples: int, voxel_size: float, feature_dims: List[int]) -> nn.Module:
+    def _generate_nd_layer(self, num_nds: int, voxel_size: float, feature_dims: List[int]) -> nn.Module:
         """
-        Generate the ND layers.
+        Generate a ND layer.
+
+        Args:
+            num_nds (int): Number of normal distributions estimated.
+            voxel_size (float): Number of the edge of each voxel in the grid.
+            feature_dims (List[int]): List of PointNet feature dimensions.
+        
+        Returns:
+            nn.Module: The ND module built.
         """
         
         raise NotImplementedError("ND-Net++ backbone not implemented.")
+    
+    def _generate_pointnet_layer(self, feature_dims: List[int]) -> nn.Module:
+        """
+        Generate a PointNet layer.
+
+        Args:
+            feature_dims (List[int]): List of PointNet feature dimensions.
+
+        Returns:
+            nn.Module: The PointNet module.
+        """
+
+        raise NotImplementedError("PointNet generator not implemented.")
     
     def _generate_tnet(self, feature_dims: List[int]) -> nn.Module:
         """
-        Generate the T-Nets.
+        Generate a T-Net.
+
+        Args:
+            feature_dims (List[int]): List of T-Net feature dimensions.
+
+        Returns:
+            nn.Module: The T-Net module.
         """
         
-        raise NotImplementedError("ND-Net++ backbone not implemented.")
+        raise NotImplementedError("T-Net generator not implemented.")
