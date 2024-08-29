@@ -59,8 +59,10 @@ class NDNetppBackbone(nn.Module):
         Returns:
             torch.Tensor: point cloud feature map shaped (batch_size, feature_dim, distsN)
         """
-        
-        raise NotImplementedError("ND-Net++ backbone not implemented.")
+
+        x = self.nd_layers(x)
+
+        return x   
     
     def _generate_nd_layer(self, num_nds: int, voxel_size: float, feature_dims: List[int]) -> nn.Module:
         """
