@@ -49,7 +49,7 @@ class VoxelizerFunction(torch.autograd.Function):
         # estimate the normal distributions
         start = time.time()
         # normal distributions shaped (batch_size, voxels_x, voxels_y, voxels_z, 12)
-        dists, _, min_coords, voxel_size = nd_utils.normal_distributions.estimate_normal_distributions(input, num_desired_dists, num_desired_dists_thres)
+        dists, _, min_coords, voxel_size = nd_utils.normal_distributions.estimate_normal_distributions(input, num_desired_dists)
         end = time.time()
         print(f"Normal distributions estimation time {dists.device}: {end - start}s - {(end-start)*1000}ms - {1.0 / (end-start)}Hz")
 
@@ -57,10 +57,13 @@ class VoxelizerFunction(torch.autograd.Function):
         sampled_pcd, sampled_idx = nd_utils.point_clouds.random_sample_point_cloud(input, num_desired_dists)
 
         # convert the sampled point cloud from metric to voxel space, to the the grid indices
-        neighborhood_idxs = nd_utils.voxelization.metric_to_voxel_space(sampled_pcd, voxel_size, min_coords)
+        neighborhood_idxs = nd_utils.voxelization.metric_to_voxel_space(sampled_pcd, voxel_size, num_desired_dists, min_coords)
+
+        # generate the batch indexes
+        batch_idxs = torch.arange(input.shape[0]).view(-1, 1).expand(-1, num_desired_dists)
 
         # get the normal distributions at the indices
-        filtered_dists = dists[neighborhood_idxs]
+        filtered_dists = dists[batch_idxs, neighborhood_idxs[..., 0], neighborhood_idxs[..., 1], neighborhood_idxs[..., 2]]
 
         # return the filtered normal distributions
         return filtered_dists
