@@ -42,7 +42,7 @@ if __name__ == '__main__':
     parser.add_argument("--path", type=str, required=True)
     parser.add_argument("--n_points", type=int, required=False, default=10000)
     parser.add_argument("--n_dists", type=int, required=False, default=1000)
-    parser.add_argument("--voxel_size", type=float, required=False, default=0.05)
+    parser.add_argument("--voxel_size", type=float, required=False, default=1)
     args = parser.parse_args()
 
     # check available devices
@@ -62,12 +62,14 @@ if __name__ == '__main__':
     # pick the first sample of the dataset
     sample, _ = next(iter(dataloader))
     sample = sample.to(device)
+    # sample.requires_grad = True
 
     # create a normalizer and a voxelizer layer and pass the point cloud through it
     normalizer = PointCloudNorm()
     voxelizer = Voxelizer(int(args.n_dists), float(args.voxel_size))
-    sample = normalizer(sample)
-    voxels = voxelizer(sample)
+    # voxelizer.train()
+    norm_sample = normalizer(sample)
+    voxels = voxelizer(norm_sample)
 
     # iterate the batch
     for i in range(voxels.shape[0]):
@@ -86,5 +88,15 @@ if __name__ == '__main__':
         # open a visualizer
         coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0, origin=[0, 0, 0])
         o3d.visualization.draw_geometries([sample_o3d, coordinate_frame])
+    
+    """
+    # compute a fake loss
+    loss = voxels.sum()
+    loss.backward()
+    print(loss.item())
+    print(sample.grad)
+    """
+
+    print("Done")
 
     sys.exit(0)
