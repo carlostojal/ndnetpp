@@ -88,17 +88,15 @@ class NDNetppBackbone(nn.Module):
             nn.Module: The PointNet module.
         """
 
-        raise NotImplementedError("PointNet generator not implemented.")
-    
-    def _generate_tnet(self, feature_dims: List[int]) -> nn.Module:
-        """
-        Generate a T-Net.
+        in_channels = feature_dims[0]
 
-        Args:
-            feature_dims (List[int]): List of T-Net feature dimensions.
+        # generate each pointnet layer
+        layers: List[nn.Module] = []
+        for i in range(len(feature_dims)-1):
+            conv = nn.Conv1d(in_channels, feature_dims[i+1], 1)
+            bn = nn.BatchNorm1d(feature_dims[i+1])
+            layer = nn.Sequential([conv, bn])
+        layers.append(layer)
 
-        Returns:
-            nn.Module: The T-Net module.
-        """
-        
-        raise NotImplementedError("T-Net generator not implemented.")
+        # generate the sequential pointnet
+        return nn.Sequential(*layers)
