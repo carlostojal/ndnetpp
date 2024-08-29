@@ -40,6 +40,7 @@ def estimate_normal_distributions(points: torch.Tensor, n_desired_dists: int) ->
         dists (torch.Tensor): Concatenated mean vectors and covariance matrices (batch_size, voxels_x, voxels_y, voxels_z, 12)
         sample_counts (torch.Tensor): Sample counts for each voxel (batch_size, voxels_x, voxels_y, voxels_z)
         min_coords (torch.Tensor): Point cloud minimum coordinates in each axis.
+        voxel_size (float): Generated voxel size. 
     """
 
     # find the point cloud limits and ranges
@@ -91,7 +92,7 @@ def estimate_normal_distributions(points: torch.Tensor, n_desired_dists: int) ->
     # concatenate the means and covariances along the mean/flattened covariance dimension (last dimension)
     dists = torch.cat((means, covs), dim=-1)
 
-    return dists, sample_counts, min_coords
+    return dists, sample_counts, min_coords, voxel_size
 
 def prune_normal_distributions(means: torch.Tensor, covs: torch.Tensor, valid_dists: torch.Tensor, n_desired_dists: int) -> torch.Tensor:
     """
