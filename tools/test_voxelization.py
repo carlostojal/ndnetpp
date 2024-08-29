@@ -42,7 +42,7 @@ if __name__ == '__main__':
     parser.add_argument("--path", type=str, required=True)
     parser.add_argument("--n_points", type=int, required=False, default=10000)
     parser.add_argument("--n_dists", type=int, required=False, default=1000)
-    parser.add_argument("--n_dists_thres", type=float, required=False, default=20.0)
+    parser.add_argument("--voxel_size", type=float, required=False, default=1)
     args = parser.parse_args()
 
     # check available devices
@@ -62,24 +62,41 @@ if __name__ == '__main__':
     # pick the first sample of the dataset
     sample, _ = next(iter(dataloader))
     sample = sample.to(device)
+    # sample.requires_grad = True
 
     # create a normalizer and a voxelizer layer and pass the point cloud through it
     normalizer = PointCloudNorm()
-    voxelizer = Voxelizer(int(args.n_dists), float(args.n_dists_thres))
-    sample = normalizer(sample)
-    voxels = voxelizer(sample)
+    voxelizer = Voxelizer(int(args.n_dists), float(args.voxel_size))
+    # voxelizer.train()
+    norm_sample = normalizer(sample)
+    voxels = voxelizer(norm_sample)
 
-    # remove the batch dimension and keep only the first 3 columns (mean vector)
-    voxels = voxels[0][:3]
+    # iterate the batch
+    for i in range(voxels.shape[0]):
+        # extract the batch
+        batch_voxels = voxels[i]
+        # slice the mean
+        batch_voxels = batch_voxels[...,:3]
 
-    # visualize using open3d
-    # convert the tensor to a numpy array
-    sample_np = voxels.cpu().numpy()
-    print(sample_np.shape)
-    # convert the numpy array to an open3d point cloud
-    sample_o3d = o3d.geometry.PointCloud()
-    sample_o3d.points = o3d.utility.Vector3dVector(sample_np)
-    # open a visualizer
-    o3d.visualization.draw_geometries([sample_o3d])
+        # visualize using open3d
+        # convert the tensor to a numpy array
+        sample_np = batch_voxels.cpu().numpy()
+        print(sample_np.shape)
+        # convert the numpy array to an open3d point cloud
+        sample_o3d = o3d.geometry.PointCloud()
+        sample_o3d.points = o3d.utility.Vector3dVector(sample_np)
+        # open a visualizer
+        coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0, origin=[0, 0, 0])
+        o3d.visualization.draw_geometries([sample_o3d, coordinate_frame])
+    
+    """
+    # compute a fake loss
+    loss = voxels.sum()
+    loss.backward()
+    print(loss.item())
+    print(sample.grad)
+    """
+
+    print("Done")
 
     sys.exit(0)

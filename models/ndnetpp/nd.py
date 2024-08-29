@@ -29,17 +29,18 @@ from typing import Tuple
 import time
 import nd_utils.voxelization
 import nd_utils.normal_distributions
+import nd_utils.point_clouds
 
 class VoxelizerFunction(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, input: torch.Tensor, num_desired_dists: int, num_desired_dists_thres: float = 0.2) -> Tuple[torch.Tensor]:
+    def forward(ctx, input: torch.Tensor, num_desired_dists: int, voxel_size: float) -> torch.Tensor:
         """
         Voxelize the input point cloud.
 
         Args:
             input (torch.Tensor): Input point cloud of shape (batch_size, n_points, 3).
             num_desired_dists (int): Number of desired normal distributions.
-            num_desired_dists_thres (float): Threshold for the number of desired normal distributions.
+            voxel_size (float): Size of the edge of each voxel.
 
         Returns:
             torch.Tensor: Normal distribution means and covariances (n_desired_dists, 12).
@@ -47,21 +48,31 @@ class VoxelizerFunction(torch.autograd.Function):
 
         # estimate the normal distributions
         start = time.time()
-        dists, sample_counts = nd_utils.normal_distributions.estimate_normal_distributions(input, num_desired_dists, num_desired_dists_thres)
+        # normal distributions shaped (batch_size, voxels_x, voxels_y, voxels_z, 12)
+        dists, _, min_coords, n_voxels = nd_utils.normal_distributions.estimate_normal_distributions_with_size(input, voxel_size)
         end = time.time()
         print(f"Normal distributions estimation time {dists.device}: {end - start}s - {(end-start)*1000}ms - {1.0 / (end-start)}Hz")
 
-        # prune the extra normal distributions based on the Kullback-Leibler divergences
-        # valid_dists = nd_utils.normal_distributions.prune_normal_distributions(means, covs, valid_dists, num_desired_dists)
+        # get the voxel indices of the input point cloud
+        voxel_idxs_pcd = nd_utils.voxelization.metric_to_voxel_space(input, voxel_size, n_voxels, min_coords)
 
-        # filter the tensors to only contain the valid normal distributions (sample counts >= 2)
-        batch_size = input.shape[0]
-        valid_dists = dists[sample_counts > 1].view(batch_size, -1, 3)
+        # randomly sample the input point cloud
+        sampled_pcd, sampled_idx = nd_utils.point_clouds.random_sample_point_cloud(input, num_desired_dists)
 
-        # TODO: save the context needed for the backward pass
+        # convert the sampled point cloud from metric to voxel space, to the the grid indices
+        neighborhood_idxs = nd_utils.voxelization.metric_to_voxel_space(sampled_pcd, voxel_size, num_desired_dists, min_coords)
+
+        # generate the batch indexes
+        batch_idxs = torch.arange(input.shape[0]).view(-1, 1).expand(-1, num_desired_dists)
+
+        # get the normal distributions at the indices
+        filtered_dists = dists[batch_idxs, neighborhood_idxs[..., 0], neighborhood_idxs[..., 1], neighborhood_idxs[..., 2]]
+
+        # save the context
+        ctx.save_for_backward(voxel_idxs_pcd, filtered_dists, sampled_idx, neighborhood_idxs)
 
         # return the filtered normal distributions
-        return valid_dists
+        return filtered_dists
 
     @staticmethod
     def backward(ctx, dists_grad: torch.Tensor):
@@ -69,24 +80,36 @@ class VoxelizerFunction(torch.autograd.Function):
         Voxelization backward pass.
 
         Args:
-            dists_grad (torch.Tensor): gradients of the distributions (voxels) losses (N1).
+            dists_grad (torch.Tensor): gradients of the distributions (voxels) losses shaped (batch_size, n_dists, 12)
 
         Returns:
-            torch.Tensor: gradients propagated to the points corresponding to each voxel (N).
+            torch.Tensor: gradients propagated to the points corresponding to each voxel shaped (batch_size, n_points, 3).
         """
 
-        # TODO: distribute the voxel gradients to the corresponding points
-        raise NotImplementedError("VoxelizerFunction.backward is not implemented.")
+        # retrieve the saved tensors
+        voxel_idxs_pcd, out_dists, sampled_idx, neighborhood_idxs = ctx.saved_tensors
+
+        # sum the last dimension (normal distribution) of the gradients
+        dists_grad = dists_grad.sum(dim=-1)
+
+        # create a mask where each point's voxel index matches the neighborhood index
+        mask = (voxel_idxs_pcd.unsqueeze(2) == neighborhood_idxs.unsqueeze(1)).all(dim=-1)
+
+        # broadcast the gradients to the points
+        input_grad = torch.zeros_like(voxel_idxs_pcd, dtype=dists_grad.dtype)
+        input_grad += (mask.float() * dists_grad.unsqueeze(1)).sum(dim=2).unsqueeze(-1)
+
+        return input_grad, None, None
 
 class Voxelizer(nn.Module):
     """
     Voxelize and estimate normal distributions of the input point cloud, one per voxel.
     """
-    def __init__(self, num_desired_dists: int, num_desired_dists_thres: float = 0.2):
+    def __init__(self, num_desired_dists: int, voxel_size: float):
         super().__init__()
         self.num_desired_dists = num_desired_dists
-        self.num_desired_dists_thres = num_desired_dists_thres
+        self.voxel_size = voxel_size 
 
     def forward(self, x):
         # apply the autograd function
-        return VoxelizerFunction.apply(x, self.num_desired_dists, self.num_desired_dists_thres)
+        return VoxelizerFunction.apply(x, self.num_desired_dists, self.voxel_size)
