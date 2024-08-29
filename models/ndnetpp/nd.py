@@ -94,4 +94,4 @@ class Voxelizer(nn.Module):
 
     def forward(self, x):
         # apply the autograd function
-        return VoxelizerFunction.apply(x, self.num_desired_dists, self.num_desired_dists_thres)
+        return VoxelizerFunction.apply(x, self.num_desired_dists, self.voxel_size)
