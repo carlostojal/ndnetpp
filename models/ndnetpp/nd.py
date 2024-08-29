@@ -49,7 +49,7 @@ class VoxelizerFunction(torch.autograd.Function):
         # estimate the normal distributions
         start = time.time()
         # normal distributions shaped (batch_size, voxels_x, voxels_y, voxels_z, 12)
-        dists, _, min_coords, voxel_size = nd_utils.normal_distributions.estimate_normal_distributions_with_size(input, voxel_size)
+        dists, _, min_coords, _ = nd_utils.normal_distributions.estimate_normal_distributions_with_size(input, voxel_size)
         end = time.time()
         print(f"Normal distributions estimation time {dists.device}: {end - start}s - {(end-start)*1000}ms - {1.0 / (end-start)}Hz")
 
@@ -87,10 +87,10 @@ class Voxelizer(nn.Module):
     """
     Voxelize and estimate normal distributions of the input point cloud, one per voxel.
     """
-    def __init__(self, num_desired_dists: int, num_desired_dists_thres: float = 0.2):
+    def __init__(self, num_desired_dists: int, voxel_size: float):
         super().__init__()
         self.num_desired_dists = num_desired_dists
-        self.num_desired_dists_thres = num_desired_dists_thres
+        self.voxel_size = voxel_size 
 
     def forward(self, x):
         # apply the autograd function
