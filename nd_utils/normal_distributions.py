@@ -27,27 +27,26 @@ import torch
 from typing import Tuple
 import nd_utils
 
-def estimate_normal_distributions(points: torch.Tensor, n_desired_dists: int,
-                                  n_desired_dists_thres: float = 0.2) -> Tuple[torch.Tensor, torch.Tensor]:
+def estimate_normal_distributions(points: torch.Tensor, n_desired_dists: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Estimate normal distributions from the point coordinates.
 
     Args:
         points (torch.Tensor): Point coordinates (batch_size, n_points, 3)
         n_desired_dists (int): Desired number of normal distributions
-        n_desired_dists_thres (float): Threshold of acceptable number of normal distributions
 
 
     Returns:
         dists (torch.Tensor): Concatenated mean vectors and covariance matrices (batch_size, voxels_x, voxels_y, voxels_z, 12)
         sample_counts (torch.Tensor): Sample counts for each voxel (batch_size, voxels_x, voxels_y, voxels_z)
+        min_coords (torch.Tensor): Point cloud minimum coordinates in each axis.
     """
 
     # find the point cloud limits and ranges
-    min_coords, max_coords, dimensions = nd_utils.voxelization.find_point_cloud_limits(points)
+    min_coords, _, dimensions = nd_utils.voxelization.find_point_cloud_limits(points)
 
     # calculate the batch-wise voxel size and number of voxels
-    voxel_size, n_voxels = nd_utils.voxelization.calculate_voxel_size(dimensions, int(n_desired_dists*(1.0+n_desired_dists_thres)))
+    voxel_size, n_voxels = nd_utils.voxelization.calculate_voxel_size(dimensions, int(n_desired_dists))
 
     grid_dim = torch.cat((torch.tensor([points.shape[0]]), n_voxels.cpu())).int()
 
@@ -92,7 +91,7 @@ def estimate_normal_distributions(points: torch.Tensor, n_desired_dists: int,
     # concatenate the means and covariances along the mean/flattened covariance dimension (last dimension)
     dists = torch.cat((means, covs), dim=-1)
 
-    return dists, sample_counts
+    return dists, sample_counts, min_coords
 
 def prune_normal_distributions(means: torch.Tensor, covs: torch.Tensor, valid_dists: torch.Tensor, n_desired_dists: int) -> torch.Tensor:
     """
