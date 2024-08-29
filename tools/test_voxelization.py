@@ -42,7 +42,7 @@ if __name__ == '__main__':
     parser.add_argument("--path", type=str, required=True)
     parser.add_argument("--n_points", type=int, required=False, default=10000)
     parser.add_argument("--n_dists", type=int, required=False, default=1000)
-    parser.add_argument("--n_dists_thres", type=float, required=False, default=20.0)
+    parser.add_argument("--voxel_size", type=float, required=False, default=0.05)
     args = parser.parse_args()
 
     # check available devices
@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     # create a normalizer and a voxelizer layer and pass the point cloud through it
     normalizer = PointCloudNorm()
-    voxelizer = Voxelizer(int(args.n_dists), float(args.n_dists_thres))
+    voxelizer = Voxelizer(int(args.n_dists), float(args.voxel_size))
     sample = normalizer(sample)
     voxels = voxelizer(sample)
 
