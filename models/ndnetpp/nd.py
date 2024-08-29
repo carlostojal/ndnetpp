@@ -29,6 +29,7 @@ from typing import Tuple
 import time
 import nd_utils.voxelization
 import nd_utils.normal_distributions
+import nd_utils.point_clouds
 
 class VoxelizerFunction(torch.autograd.Function):
     @staticmethod
@@ -48,31 +49,21 @@ class VoxelizerFunction(torch.autograd.Function):
         # estimate the normal distributions
         start = time.time()
         # normal distributions shaped (batch_size, voxels_x, voxels_y, voxels_z, 12)
-        dists, sample_counts = nd_utils.normal_distributions.estimate_normal_distributions(input, num_desired_dists, num_desired_dists_thres)
+        dists, _, min_coords, voxel_size = nd_utils.normal_distributions.estimate_normal_distributions(input, num_desired_dists, num_desired_dists_thres)
         end = time.time()
         print(f"Normal distributions estimation time {dists.device}: {end - start}s - {(end-start)*1000}ms - {1.0 / (end-start)}Hz")
 
-        # get the batch size
-        batch_size = input.shape[0]
+        # randomly sample the input point cloud
+        sampled_pcd, sampled_idx = nd_utils.point_clouds.random_sample_point_cloud(input, num_desired_dists)
 
-        # create a tensor for the clean normal distributions shaped (batch_size, n_desired_dists, 12)
-        clean_dists = torch.empty((batch_size, num_desired_dists, 12), device=input.device)
+        # convert the sampled point cloud from metric to voxel space, to the the grid indices
+        neighborhood_idxs = nd_utils.voxelization.metric_to_voxel_space(sampled_pcd, voxel_size, min_coords)
 
-        # remove random normal distributions until the desired number is reached in each batch
-        for b in range(batch_size):
-            # TODO: review this
-            batch_dists = dists[b]
-            batch_sample_counts = sample_counts[b]
-            valid_dists = batch_dists[batch_sample_counts > 1]
-            n_dists = valid_dists.shape[0]
-            indices_to_keep = torch.randperm(n_dists, device=input.device)[:num_desired_dists]
-            valid_dists = valid_dists[indices_to_keep]
-            clean_dists[b] = valid_dists.view(-1, 12)
-
-        # TODO: save the context needed for the backward pass
+        # get the normal distributions at the indices
+        filtered_dists = dists[neighborhood_idxs]
 
         # return the filtered normal distributions
-        return clean_dists
+        return filtered_dists
 
     @staticmethod
     def backward(ctx, dists_grad: torch.Tensor):
