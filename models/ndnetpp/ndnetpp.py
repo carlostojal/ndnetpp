@@ -83,9 +83,14 @@ class NDNetppBackbone(nn.Module):
             nn.Module: The ND module.
         """
 
+        # initialize the voxelizer layer
+        nd = Voxelizer(num_nds, voxel_size)
 
-        
-        raise NotImplementedError("ND-Net++ backbone not implemented.")
+        # initialize the pointnet layer
+        pointnet = self._generate_pointnet_layer(feature_dims)
+
+        # create the sequential module
+        return nn.Sequential([nd, pointnet])
     
     def _generate_pointnet_layer(self, feature_dims: List[int]) -> nn.Module:
         """
