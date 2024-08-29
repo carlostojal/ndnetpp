@@ -4,22 +4,23 @@ weight_decay: 0.0001
 momentum: 0.9
 num_epochs: 100
 
-num_classes: 40
+backbone:
+  num_nd_layers: 2
+  num_nds: [1024, 512] # number of normal distributions at each ND layer
+  voxel_sizes: [0.05, 0.1] # voxel sizes for each ND layer
+  # feature dimensions of the PointNet layers
+  pointnet_feature_dims: 
+    - [64, 64, 128]
+    - [128, 128, 256]
+  # feature dimensions of the T-Net layers
+  tnet_feature_dims: 
+    - [64, 128, 1024, 512, 256]
+    - [64, 128, 1024, 512, 256]
 
-num_nd_layers: 2
-num_nds: [1024, 512] # number of normal distributions at each ND layer
-voxel_sizes: [0.05, 0.1] # voxel sizes for each ND layer
-# feature dimensions of the PointNet layers
-pointnet_feature_dims: 
-  - [64, 64, 128]
-  - [128, 128, 256]
-  - [256, 512, 1024]
-# feature dimensions of the T-Net layers
-tnet_feature_dims: 
-  - [64, 128, 1024, 512, 256]
-  - [64, 128, 1024, 512, 256]
-  - [64, 128, 1024, 512, 256]
-
+cls_head:
+  num_classes: 40
+  # last pointnet layer feature dimension
+  pointnet_feature_dims: [256, 512, 1024]
   # fully connected layers
-fc_dims: [512, 256]
-dropout_probs: [0.5, 0.5]
+  fc_dims: [512, 256]
+  dropout_probs: [0.5, 0.5]
