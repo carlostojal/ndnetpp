@@ -28,13 +28,13 @@ from typing import Tuple
 import nd_utils
 import nd_utils.voxelization
 
-def estimate_normal_distributions_with_numel(points: torch.Tensor, n_elements: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def estimate_normal_distributions_with_numel(points: torch.Tensor, n_elements: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Estimate normal distributions within a grid with a given number of elements from the point coordinates.
 
     Args:
         points (torch.Tensor): Point coordinates (batch_size, n_points, 3)
-        n_desired_dists (int): Desired number grid elements.
+        n_elements (int): Desired number of grid elements. Will be rounded up.
 
 
     Returns:
@@ -56,13 +56,13 @@ def estimate_normal_distributions_with_numel(points: torch.Tensor, n_elements: i
     return dists, sample_counts, min_coords, voxel_size
 
 
-def estimate_normal_distributions_with_size(points: torch.Tensor, voxel_size: float) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def estimate_normal_distributions_with_size(points: torch.Tensor, voxel_size: float) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Estimate normal distributions with a given voxel size from the point coordinates.
 
     Args:
         points (torch.Tensor): Point coordinates (batch_size, n_points, 3)
-        n_desired_dists (int): Desired number of normal distributions
+        voxel_size (int): Size of the edge of each voxel.
 
     Returns:
         dists (torch.Tensor): Concatenated mean vectors and covariance matrices (batch_size, voxels_x, voxels_y, voxels_z, 12)
