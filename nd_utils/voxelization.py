@@ -70,6 +70,23 @@ def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tup
 
     return voxel_size, n_voxels
 
+def calculate_num_voxels(dimensions: torch.Tensor, voxel_size: float) -> torch.Tensor:
+    """
+    Calculate the number of voxels in each dimension from the point cloud dimensions and the voxel size.
+
+    Args:
+        dimensions (torch.Tensor): Dimensions in each axis in metric space (3-dimensional vectors)
+        voxel_size (float): Size of the edge of each voxel
+
+    Returns:
+        n_voxels (torch.Tensor): Number of voxels in each dimension (3-dimensional vectors)
+    """
+
+    # calculate the number of voxels
+    n_voxels = torch.ceil(dimensions / voxel_size).int()
+
+    return n_voxels
+
 def metric_to_voxel_space(points: torch.Tensor, voxel_size: float, n_voxels: torch.Tensor,
                           min_coords: torch.Tensor) -> torch.Tensor:
     """
