@@ -85,7 +85,7 @@ def estimate_normal_distributions_with_size(points: torch.Tensor,
     """
 
     # find point cloud limits and dimensions
-    min_coords, _, dimensions = nd_utils.voxelization.find_point_cloud_limits(points[:, :, 3])
+    min_coords, _, dimensions = nd_utils.voxelization.find_point_cloud_limits(points[:, :, :3])
 
     # calculate the number of voxels in each dimension
     n_voxels = nd_utils.voxelization.calculate_num_voxels(dimensions, voxel_size)
