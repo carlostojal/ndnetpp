@@ -41,7 +41,7 @@ def find_point_cloud_limits(point_clouds: torch.Tensor) -> Tuple[torch.Tensor, t
 
     # ensure the point cloud has only 3 channels (xyz coordinates)
     if point_clouds.size(2) != 3:
-        raise RuntimeError("Expected point cloud to have exactly 3 channels.")
+        raise ValueError("Expected point cloud to have exactly 3 channels.")
 
     # find the limits
     max_coords = torch.amax(point_clouds, dim=(0, 1))
@@ -107,6 +107,10 @@ def metric_to_voxel_space(points: torch.Tensor, voxel_size: float, n_voxels: tor
         voxel_idx (torch.Tensor): Voxel indices in each dimension (batch_size, n_points, 3)
     """
 
+    # verify the number of dimension of the point vectors
+    if points.size(2) != 3:
+        raise ValueError("Points must be 3-dimensional")
+
     voxel_idx = torch.floor((points - min_coords) / voxel_size).long()
 
     # check out-of-bounds indices
@@ -129,6 +133,9 @@ def voxel_to_metric_space(voxels: torch.Tensor, voxel_size: torch.Tensor,
     Returns:
         coords (torch.Tensor): Coordinates of the voxel centers in metric space (n_voxels, 3)
     """
+
+    if voxels.size(2) != 3:
+        raise ValueError("Voxel indices must be 3-dimensional")
     
     # get the voxel edge and add half a voxel and the offset
     return (voxels * voxel_size) + (voxel_size / 2.0) + min_coords
