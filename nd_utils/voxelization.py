@@ -39,14 +39,19 @@ def find_point_cloud_limits(point_clouds: torch.Tensor) -> Tuple[torch.Tensor, t
         torch.Tensor: dimension in each axis (3)
     """
 
+    # ensure the point cloud has only 3 channels (xyz coordinates)
+    if point_clouds.size(2) != 3:
+        raise RuntimeError("Expected point cloud to have exactly 3 channels.")
+
     # find the limits
-    max_coords = torch.amax(point_clouds, dim=(0,1))
-    min_coords = torch.amin(point_clouds, dim=(0,1))
+    max_coords = torch.amax(point_clouds, dim=(0, 1))
+    min_coords = torch.amin(point_clouds, dim=(0, 1))
 
     # calculate the dimensions in each axis (max - min)
     dimensions = max_coords - min_coords
 
     return min_coords, max_coords, dimensions
+
 
 def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tuple[float, torch.Tensor]:
     """
