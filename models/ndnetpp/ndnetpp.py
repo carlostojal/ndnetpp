@@ -29,14 +29,15 @@ from typing import Any, List
 from ndnetpp.nd import Voxelizer
 from ndnetpp.point_clouds import PointCloudNorm
 
+
 class NDNetppBackbone(nn.Module):
     """
     NDNet++ backbone common to all variants.
     """
-    
+
     def __init__(self, conf: Any) -> None:
         super().__init__()
-        
+
         self.num_nds = conf.backbone.num_nds
         self.voxel_sizes = conf.backbone.voxel_sizes
 
@@ -44,43 +45,38 @@ class NDNetppBackbone(nn.Module):
         self.pcd_norm = PointCloudNorm()
 
         # generate the ND layers
-        self.nd_layers: List[nn.Module] = []
+        nd_layers_list: List[nn.Module] = []
         for i in range(conf.backbone.num_nd_layers):
             nd_layer = self._generate_nd_layer(conf.backbone.num_nds[i],
                                                conf.backbone.voxel_sizes[i],
                                                conf.backbone.pointnet_feature_dims[i])
-            self.nd_layers.append(nd_layer)
+            nd_layers_list.append(nd_layer)
+        self.nd_layers = nn.Sequential(*nd_layers_list)
 
         raise NotImplementedError("ND-Net++ backbone not implemented.")
-    
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the NDNet++ backbone.
-        
+
         Args:
             x (torch.Tensor): the input point cloud, shaped (batch_size, point_dim, num_points)
-        
+
         Returns:
             torch.Tensor: point cloud feature map shaped (batch_size, feature_dim, distsN)
         """
 
+        # normalize the point cloud coordinates
         x = self.pcd_norm(x)
 
-        """
-        TODO: the point coordinates are passed between ND modules just for filtering/clustering purposes
-        On subsequent ND modules the features are used
-        """
+        # pass through the ND layers
+        # TODO: get the features at each level to construct a feature pyramid / U-Net for segmentation
+        x = self.nd_layers(x)
 
-        # iterate the ND layers
-        for i, nd_layer in enumerate(self.nd_layers):
-            # extract the first 3 channels of x
-            x = x[:,:3,:]
-            # pass through the ND layer
-            features, x = nd_layer(x)
+        return x
 
-        return x   
-    
-    def _generate_nd_layer(self, num_nds: int, voxel_size: float, feature_dims: List[int]) -> nn.Module:
+    def _generate_nd_layer(self, num_nds: int, voxel_size: float, feature_dims: List[int],
+                           first: bool = True) -> nn.Module:
         """
         Generate a ND layer.
 
@@ -88,20 +84,21 @@ class NDNetppBackbone(nn.Module):
             num_nds (int): Number of normal distributions estimated.
             voxel_size (float): Number of the edge of each voxel in the grid.
             feature_dims (List[int]): List of PointNet feature dimensions.
-        
+            first (bool): Is this the first ND layer of ND-Net? Default: True.
+
         Returns:
             nn.Module: The ND module.
         """
 
         # initialize the voxelizer layer
-        nd = Voxelizer(num_nds, voxel_size)
+        nd = Voxelizer(num_nds, voxel_size, not first)
 
         # initialize the pointnet layer
         pointnet = self._generate_pointnet_layer(feature_dims)
 
         # create the sequential module
         return nn.Sequential([nd, pointnet])
-    
+
     def _generate_pointnet_layer(self, feature_dims: List[int]) -> nn.Module:
         """
         Generate a PointNet layer.
