@@ -29,20 +29,25 @@ import nd_utils
 import nd_utils.voxelization
 
 
-def estimate_normal_distributions_with_numel(points: torch.Tensor, n_elements: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+def estimate_normal_distributions_with_numel(points: torch.Tensor,
+                                             n_elements: int,
+                                             estimate_covariances: bool = True,
+                                             mean_dims: int = 3) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Estimate normal distributions within a grid with a given number of elements from the point coordinates.
 
     Args:
         points (torch.Tensor): Point coordinates (optionally with covariances and feature vectors) (batch_size, n_points, d)
         n_elements (int): Desired number of grid elements. Will be rounded up.
+        estimate_covariances (bool): Whether to estimate the covariances or not. Default: True.
+        mean_dims (int): Number of dimensions to consider for mean calculation. Default: 3. -1 to consider all.
 
 
     Returns:
         dists (torch.Tensor): Concatenated mean vectors and covariance matrices (batch_size, voxels_x, voxels_y, voxels_z, 12)
         sample_counts (torch.Tensor): Sample counts for each voxel (batch_size, voxels_x, voxels_y, voxels_z)
         min_coords (torch.Tensor): Point cloud minimum coordinates in each axis.
-        voxel_size (float): Generated voxel size. 
+        voxel_size (float): Generated voxel size.
     """
 
     # find the point cloud limits and ranges
@@ -53,18 +58,24 @@ def estimate_normal_distributions_with_numel(points: torch.Tensor, n_elements: i
     voxel_size, n_voxels = nd_utils.voxelization.calculate_voxel_size(dimensions, int(n_elements))
 
     # estimate the normal distribution grid
-    dists, sample_counts = estimate_grid(points, min_coords, n_voxels, voxel_size)
+    dists, sample_counts = estimate_grid(points, min_coords, n_voxels, voxel_size,
+                                         estimate_covariances, mean_dims)
 
     return dists, sample_counts, min_coords, voxel_size
 
 
-def estimate_normal_distributions_with_size(points: torch.Tensor, voxel_size: float) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+def estimate_normal_distributions_with_size(points: torch.Tensor,
+                                            voxel_size: float,
+                                            estimate_covariances: bool = True,
+                                            mean_dims: int = 3) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Estimate normal distributions with a given voxel size from the point coordinates.
 
     Args:
         points (torch.Tensor): Point coordinates (batch_size, n_points, 3)
         voxel_size (int): Size of the edge of each voxel.
+        estimate_covariances (bool): Whether to estimate the covariances or not. Default: True
+        mean_dims (int): Number of dimensions to consider for mean calculation. Default: 3. -1 to consider all.
 
     Returns:
         dists (torch.Tensor): Concatenated mean vectors and covariance matrices (batch_size, voxels_x, voxels_y, voxels_z, 12)
@@ -74,13 +85,13 @@ def estimate_normal_distributions_with_size(points: torch.Tensor, voxel_size: fl
     """
 
     # find point cloud limits and dimensions
-    min_coords, _, dimensions = nd_utils.voxelization.find_point_cloud_limits(points)
+    min_coords, _, dimensions = nd_utils.voxelization.find_point_cloud_limits(points[:, :, 3])
 
     # calculate the number of voxels in each dimension
     n_voxels = nd_utils.voxelization.calculate_num_voxels(dimensions, voxel_size)
 
     # estimate the normal distribution grid
-    dists, sample_counts = estimate_grid(points, min_coords, n_voxels, voxel_size)
+    dists, sample_counts = estimate_grid(points, min_coords, n_voxels, voxel_size, estimate_covariances, mean_dims)
 
     return dists, sample_counts, min_coords, n_voxels
 
