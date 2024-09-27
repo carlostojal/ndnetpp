@@ -51,7 +51,7 @@ class NDNetppBackbone(nn.Module):
             nd_layer = self._generate_nd_layer(conf.backbone.num_nds[i],
                                                conf.backbone.voxel_sizes[i],
                                                conf.backbone.pointnet_feature_dims[i],
-                                           first)
+                                               first)
             nd_layers_list.append(nd_layer)
             first = False
         self.nd_layers = nn.Sequential(*nd_layers_list)
