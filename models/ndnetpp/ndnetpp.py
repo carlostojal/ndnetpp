@@ -28,6 +28,7 @@ from torch import nn
 from typing import Any, List
 from ndnetpp.nd import Voxelizer
 from ndnetpp.point_clouds import PointCloudNorm
+from ndnetpp.utils import _generate_nd_layer, _generate_pointnet_layer
 
 
 class NDNetppBackbone(nn.Module):
@@ -48,7 +49,7 @@ class NDNetppBackbone(nn.Module):
         nd_layers_list: List[nn.Module] = []
         first: bool = True
         for i in range(conf.backbone.num_nd_layers):
-            nd_layer = self._generate_nd_layer(conf.backbone.num_nds[i],
+            nd_layer = _generate_nd_layer(conf.backbone.num_nds[i],
                                                conf.backbone.voxel_sizes[i],
                                                conf.backbone.pointnet_feature_dims[i],
                                                first)
@@ -78,50 +79,3 @@ class NDNetppBackbone(nn.Module):
 
         return x
 
-    def _generate_nd_layer(self, num_nds: int, voxel_size: float, feature_dims: List[int],
-                           first: bool = True) -> nn.Module:
-        """
-        Generate a ND layer.
-
-        Args:
-            num_nds (int): Number of normal distributions estimated.
-            voxel_size (float): Number of the edge of each voxel in the grid.
-            feature_dims (List[int]): List of PointNet feature dimensions.
-            first (bool): Is this the first ND layer of ND-Net? Default: True.
-
-        Returns:
-            nn.Module: The ND module.
-        """
-
-        # initialize the voxelizer layer
-        nd = Voxelizer(num_nds, voxel_size, not first)
-
-        # initialize the pointnet layer
-        pointnet = self._generate_pointnet_layer(feature_dims)
-
-        # create the sequential module
-        return nn.Sequential([nd, pointnet])
-
-    def _generate_pointnet_layer(self, feature_dims: List[int]) -> nn.Module:
-        """
-        Generate a PointNet layer.
-
-        Args:
-            feature_dims (List[int]): List of PointNet feature dimensions.
-
-        Returns:
-            nn.Module: The PointNet module.
-        """
-
-        in_channels = feature_dims[0]
-
-        # generate each pointnet layer
-        layers: List[nn.Module] = []
-        for i in range(len(feature_dims)-1):
-            conv = nn.Conv1d(in_channels, feature_dims[i+1], 1)
-            bn = nn.BatchNorm1d(feature_dims[i+1])
-            layer = nn.Sequential([conv, bn])
-        layers.append(layer)
-
-        # generate the sequential pointnet
-        return nn.Sequential(*layers)
