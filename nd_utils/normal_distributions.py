@@ -28,12 +28,13 @@ from typing import Tuple
 import nd_utils
 import nd_utils.voxelization
 
+
 def estimate_normal_distributions_with_numel(points: torch.Tensor, n_elements: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Estimate normal distributions within a grid with a given number of elements from the point coordinates.
 
     Args:
-        points (torch.Tensor): Point coordinates (batch_size, n_points, 3)
+        points (torch.Tensor): Point coordinates (optionally with covariances and feature vectors) (batch_size, n_points, d)
         n_elements (int): Desired number of grid elements. Will be rounded up.
 
 
@@ -45,7 +46,8 @@ def estimate_normal_distributions_with_numel(points: torch.Tensor, n_elements: i
     """
 
     # find the point cloud limits and ranges
-    min_coords, _, dimensions = nd_utils.voxelization.find_point_cloud_limits(points)
+    # ensure to only use the xyz coordinates (first 3 channels)
+    min_coords, _, dimensions = nd_utils.voxelization.find_point_cloud_limits(points[:, :, :3])
 
     # calculate the batch-wise voxel size and number of voxels
     voxel_size, n_voxels = nd_utils.voxelization.calculate_voxel_size(dimensions, int(n_elements))
@@ -83,29 +85,40 @@ def estimate_normal_distributions_with_size(points: torch.Tensor, voxel_size: fl
     return dists, sample_counts, min_coords, n_voxels
 
 
-def estimate_grid(points: torch.Tensor, min_coords: torch.Tensor, n_voxels: torch.Tensor, voxel_size: float) -> Tuple[torch.Tensor, torch.Tensor]:
+def estimate_grid(points: torch.Tensor, min_coords: torch.Tensor,
+                  n_voxels: torch.Tensor, voxel_size: float,
+                  estimate_covariances: bool = True,
+                  mean_dims: int = 3) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Estimate the normal distributions grid from the points and all grid information.
 
     Args:
-        points (torch.Tensor): Point coordinates (batch_size, n_points, 3)
+        points (torch.Tensor): Point coordinates (batch_size, n_points, d)
         min_coords (torch.Tensor): Minimum point coordinates of the point cloud in each axis
         n_voxels (torch.Tensor): Number of voxels in each dimension
         voxel_size (float): Size of each voxel edge
-    
+        estimate_covariances (bool): Estimate the covariances or not. Default: True
+        mean_dims (int): Number of dimensions to consider for mean calculation. (Eg: 3 for xyz). If -1, consider all point dimensions. Default: 3
+
     Returns:
         dists (torch.Tensor): Concatenated mean vectors and flattened covariance matrices (batch_size, voxels_x, voxels_y, voxels_x, 12)
         sample_counts (torch.Tensor): Sample counts for each voxel (batch_size, voxels_x, voxels_y, voxels_z)
     """
 
+    if mean_dims == -1:
+        mean_dims = points.size(2)
+    elif mean_dims <= 0:
+        raise ValueError("Invalid number of dimensions. Must be > 0 or ==-1.")
+
     # build the grid dimension with the batch dimension
     grid_dim = torch.cat((torch.tensor([points.shape[0]]), n_voxels.cpu())).int()
 
     # create a tensor of means with shape (batch_size, voxels_x, voxels_y, voxels_z, 3)
-    means = torch.zeros(torch.cat((grid_dim, torch.tensor([3]))).int().tolist(), device=points.device)
+    means = torch.zeros(torch.cat((grid_dim, torch.tensor([mean_dims]))).int().tolist(), device=points.device)
 
-    # create a tensor of covariances with shape (batch_size, voxels_x, voxels_y, voxels_z, 3, 3)
-    covs = torch.zeros(torch.cat((grid_dim, torch.tensor([3, 3]))).int().tolist(), device=points.device)
+    if estimate_covariances:
+        # create a tensor of covariances with shape (batch_size, voxels_x, voxels_y, voxels_z, 3, 3)
+        covs = torch.zeros(torch.cat((grid_dim, torch.tensor([mean_dims, mean_dims]))).int().tolist(), device=points.device)
 
     # create a tensor of sample counts with shape (batch_size, voxels_x, voxels_y, voxels_z)
     sample_counts = torch.zeros(grid_dim.tolist(), device=points.device).int()
@@ -127,20 +140,23 @@ def estimate_grid(points: torch.Tensor, min_coords: torch.Tensor, n_voxels: torc
     sample_counts.index_put_(indices, inc, accumulate=True)
 
     # calculate the means
-    means.index_put_(indices, points.view(-1, 3), accumulate=True)
-    means = means / sample_counts.unsqueeze(-1) # unsqueeze the point dimension
+    means.index_put_(indices, points.view(-1, mean_dims), accumulate=True)
+    means = means / sample_counts.unsqueeze(-1)  # unsqueeze the point dimension
 
-    # TODO: calculate the covariances
-    deviations = points - means[indices].view(batch_size, n_points, 3)
-    for i in range(3):
-        for j in range(3):
-            covs[..., i, j].index_put_(indices, (deviations[..., i] * deviations[..., j]).view(-1), accumulate=True)
-    covs = covs / sample_counts.unsqueeze(-1).unsqueeze(-1)
-    # flatten the covariance matrix
-    covs = covs.reshape(*covs.shape[:-2], -1)
+    dists = means
+
+    if estimate_covariances:
+        #  calculate the covariances
+        deviations = points - means[indices].view(batch_size, n_points, mean_dims)
+        for i in range(mean_dims):
+            for j in range(mean_dims):
+                covs[..., i, j].index_put_(indices, (deviations[..., i] * deviations[..., j]).view(-1), accumulate=True)
+        covs = covs / sample_counts.unsqueeze(-1).unsqueeze(-1)
+        # flatten the covariance matrix
+        covs = covs.reshape(*covs.shape[:-2], -1)
 
     # concatenate the means and covariances along the mean/flattened covariance dimension (last dimension)
-    dists = torch.cat((means, covs), dim=-1)
+    dists = torch.cat((dists, covs), dim=-1)
 
     return dists, sample_counts
 
