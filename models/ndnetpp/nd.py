@@ -116,14 +116,26 @@ class VoxelizerFunction(torch.autograd.Function):
 
 class Voxelizer(nn.Module):
     """
-    Voxelize and estimate normal distributions of the input point cloud, one per voxel.
+    Voxelize and estimate normal distributions of the input point cloud/normal distributions, one per voxel.
     """
 
-    def __init__(self, num_desired_dists: int, voxel_size: float):
+    def __init__(self, num_desired_dists: int, voxel_size: float,
+                 from_dists: bool = False):
+        """
+        Voxelizer class constructor.
+
+        Args:
+            num_desired_dists (int): Number of desired normal distributions.
+            voxel_size (float): Voxel size.
+            from_dists (bool): Estimate normal distributions from normal distributions? Else, estimate from points (default).
+        """
         super().__init__()
         self.num_desired_dists = num_desired_dists
         self.voxel_size = voxel_size
+        self.estimate_covariances = not from_dists
+        self.mean_dims = -1 if from_dists else 3
 
     def forward(self, x):
         # apply the autograd function
-        return VoxelizerFunction.apply(x, self.num_desired_dists, self.voxel_size)
+        return VoxelizerFunction.apply(x, self.num_desired_dists, self.voxel_size,
+                                       self.estimate_covariances, self.mean_dims)
