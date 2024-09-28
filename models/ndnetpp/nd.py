@@ -25,20 +25,22 @@ SOFTWARE.
 
 import torch
 from torch import nn
-from typing import Tuple
 import time
 import nd_utils.voxelization
 import nd_utils.normal_distributions
 import nd_utils.point_clouds
 
+
 class VoxelizerFunction(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, input: torch.Tensor, num_desired_dists: int, voxel_size: float) -> torch.Tensor:
+    def forward(ctx, input: torch.Tensor, num_desired_dists: int,
+                voxel_size: float, estimate_covariances: bool = False,
+                mean_dims: int = 3) -> torch.Tensor:
         """
         Voxelize the input point cloud.
 
         Args:
-            input (torch.Tensor): Input point cloud of shape (batch_size, n_points, 3).
+            input (torch.Tensor): Input point cloud of shape (batch_size, n_points, d).
             num_desired_dists (int): Number of desired normal distributions.
             voxel_size (float): Size of the edge of each voxel.
 
@@ -49,27 +51,40 @@ class VoxelizerFunction(torch.autograd.Function):
         # estimate the normal distributions
         start = time.time()
         # normal distributions shaped (batch_size, voxels_x, voxels_y, voxels_z, 12)
-        dists, _, min_coords, n_voxels = nd_utils.normal_distributions.estimate_normal_distributions_with_size(input, voxel_size)
+        dists, _, min_coords, n_voxels = nd_utils.normal_distributions.estimate_normal_distributions_with_size(input, voxel_size,
+                                                                                                               estimate_covariances,
+                                                                                                               mean_dims)
         end = time.time()
         print(f"Normal distributions estimation time {dists.device}: {end - start}s - {(end-start)*1000}ms - {1.0 / (end-start)}Hz")
 
-        # get the voxel indices of the input point cloud
-        voxel_idxs_pcd = nd_utils.voxelization.metric_to_voxel_space(input, voxel_size, n_voxels, min_coords)
+        # get the voxel indices of the input point cloud (batch_size, n_points, 3) - point indices in voxel grid
+        voxel_idxs_pcd = nd_utils.voxelization.metric_to_voxel_space(input[:, :, :3], voxel_size, n_voxels, min_coords)
 
-        # randomly sample the input point cloud
+        # randomly sample the input point cloud (batch_size, n_dists, 3) - point positions
         sampled_pcd, sampled_idx = nd_utils.point_clouds.random_sample_point_cloud(input, num_desired_dists)
 
-        # convert the sampled point cloud from metric to voxel space, to the the grid indices
-        neighborhood_idxs = nd_utils.voxelization.metric_to_voxel_space(sampled_pcd, voxel_size, num_desired_dists, min_coords)
+        # convert the sampled point cloud from metric to voxel space, to the the grid indices (batch_size, n_dists, 3) - normal dists. indices in voxel grid
+        neighborhood_idxs = nd_utils.voxelization.metric_to_voxel_space(sampled_pcd[:, :, :3], voxel_size, num_desired_dists, min_coords)
 
         # generate the batch indexes
         batch_idxs = torch.arange(input.shape[0]).view(-1, 1).expand(-1, num_desired_dists)
 
-        # get the normal distributions at the indices
+        # get the normal distributions at the indices (batch_size, n_dists, 12)
         filtered_dists = dists[batch_idxs, neighborhood_idxs[..., 0], neighborhood_idxs[..., 1], neighborhood_idxs[..., 2]]
 
+        # create a mask in which each point's voxel index matches the normal distribution index
+        mask = (voxel_idxs_pcd.unsqueeze(2) == neighborhood_idxs.unsqueeze(1)).all(dim=-1)
+
+        # create a mapping from point indices to normal distribution indices (1-dimensional) (batch_size, n_points)
+        no_match = torch.all(~mask, dim=-1) # create a tensor of points not present in any normal distribution
+        mask_int = mask.int()
+        point_to_dist = torch.argmax(mask_int, dim=-1)
+        point_to_dist[no_match] = -1 # set the points not present in any normal distribution to -1
+
+        print(torch.max(point_to_dist, dim=-1)[0])
+
         # save the context
-        ctx.save_for_backward(voxel_idxs_pcd, filtered_dists, sampled_idx, neighborhood_idxs)
+        ctx.save_for_backward(voxel_idxs_pcd, filtered_dists, sampled_idx, neighborhood_idxs, mask)
 
         # return the filtered normal distributions
         return filtered_dists
@@ -87,13 +102,10 @@ class VoxelizerFunction(torch.autograd.Function):
         """
 
         # retrieve the saved tensors
-        voxel_idxs_pcd, out_dists, sampled_idx, neighborhood_idxs = ctx.saved_tensors
+        voxel_idxs_pcd, out_dists, sampled_idx, neighborhood_idxs, mask = ctx.saved_tensors
 
         # sum the last dimension (normal distribution) of the gradients
         dists_grad = dists_grad.sum(dim=-1)
-
-        # create a mask where each point's voxel index matches the neighborhood index
-        mask = (voxel_idxs_pcd.unsqueeze(2) == neighborhood_idxs.unsqueeze(1)).all(dim=-1)
 
         # broadcast the gradients to the points
         input_grad = torch.zeros_like(voxel_idxs_pcd, dtype=dists_grad.dtype)
@@ -101,15 +113,29 @@ class VoxelizerFunction(torch.autograd.Function):
 
         return input_grad, None, None
 
+
 class Voxelizer(nn.Module):
     """
-    Voxelize and estimate normal distributions of the input point cloud, one per voxel.
+    Voxelize and estimate normal distributions of the input point cloud/normal distributions, one per voxel.
     """
-    def __init__(self, num_desired_dists: int, voxel_size: float):
+
+    def __init__(self, num_desired_dists: int, voxel_size: float,
+                 from_dists: bool = False):
+        """
+        Voxelizer class constructor.
+
+        Args:
+            num_desired_dists (int): Number of desired normal distributions.
+            voxel_size (float): Voxel size.
+            from_dists (bool): Estimate normal distributions from normal distributions? Else, estimate from points (default).
+        """
         super().__init__()
         self.num_desired_dists = num_desired_dists
-        self.voxel_size = voxel_size 
+        self.voxel_size = voxel_size
+        self.estimate_covariances = not from_dists
+        self.mean_dims = -1 if from_dists else 3
 
     def forward(self, x):
         # apply the autograd function
-        return VoxelizerFunction.apply(x, self.num_desired_dists, self.voxel_size)
+        return VoxelizerFunction.apply(x, self.num_desired_dists, self.voxel_size,
+                                       self.estimate_covariances, self.mean_dims)
