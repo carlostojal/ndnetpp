@@ -22,6 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 """
+from typing import List
+import torch
+from torch import nn
+from models.ndnetpp.nd import Voxelizer
 
 def _generate_nd_layer(self, num_nds: int, voxel_size: float, feature_dims: List[int],
                            first: bool = True) -> nn.Module:
