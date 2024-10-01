@@ -26,9 +26,9 @@ SOFTWARE.
 import torch
 from torch import nn
 from typing import Any, List
-from ndnetpp.nd import Voxelizer
-from ndnetpp.point_clouds import PointCloudNorm
-from ndnetpp.utils import _generate_nd_layer, _generate_pointnet_layer
+from models.ndnetpp.nd import Voxelizer
+from models.ndnetpp.point_clouds import PointCloudNorm
+from models.utils import _generate_nd_layer, _generate_pointnet_layer
 
 
 class NDNetppBackbone(nn.Module):
