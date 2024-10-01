@@ -60,10 +60,28 @@ if __name__ == '__main__':
 
     print(config)
 
+    # detect the device
+    device = 'cpu'
+    if torch.cuda.is_available():
+        device = 'cuda'
+
+    # build the model
+    model = NDNetppClassifier(config)
+    model = model.to(device)
+    print(model)
+
+    # dummy forward
+    """
+    pcd = torch.rand(1, 2000, 3, device=device)
+    print(pcd.shape)
+    out = model(pcd)
+    """
+    
+
+    
 
 
-    # TODO: parse command line arguments
-    # TODO: read the configuration file
+
     # TODO: build the model
     # TODO: load the dataset and create a dataloader
     # TODO: create the optimizer and criterion
