@@ -25,8 +25,9 @@ SOFTWARE.
 
 import torch
 from torch import nn
-from ndnetpp.ndnetpp import NDNetppBackbone
-from ndnetpp.utils import _generate_pointnet_layer
+from models.ndnetpp.ndnetpp import NDNetppBackbone
+from models.utils import _generate_pointnet_layer
+from typing import Any
 
 class NDNetppClassifier(nn.Module):
     """
@@ -85,13 +86,13 @@ class NDNetppClassifier(nn.Module):
         layers.append(pointnet)
 
         # generate the fully-connected layers
-        in = in_features
+        last_in = in_features
         for f in conf.cls_head.pointnet_feature_dims:
-            l = nn.Linear(in, int(f))  # create the FC layer
+            l = nn.Linear(last_in, int(f))  # create the FC layer
             layers.append(l)  # add the layer to the list
-            in = int(f)  # update the input dimension of the next layer
+            last_in = int(f)  # update the input dimension of the next layer
         # add the last layer with the number of classes
-        l = nn.Linear(in, int(conf.num_classes))
+        l = nn.Linear(last_in, int(conf.num_classes))
         s = nn.Softmax(int(conf.num_classes))
         layers.extend([l, s])
 
