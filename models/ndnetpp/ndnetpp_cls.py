@@ -25,8 +25,9 @@ SOFTWARE.
 
 import torch
 from torch import nn
-from ndnetpp.ndnetpp import NDNetppBackbone
-from ndnetpp.utils import _generate_pointnet_layer
+from models.ndnetpp.ndnetpp import NDNetppBackbone
+from models.utils import _generate_pointnet_layer
+from typing import Any
 
 class NDNetppClassifier(nn.Module):
     """
@@ -41,14 +42,16 @@ class NDNetppClassifier(nn.Module):
             conf (Any): Configuration object as per the conf. file
         """
 
+        super().__init__()
+
         # build the backbone
         self.backbone = NDNetppBackbone(conf)
 
         # get the dimension of the feature map
-        feature_dim = int(conf.backbone.pointnet_feature_dims[-1][-1])
+        feature_dim = int(conf['backbone']['pointnet_feature_dims'][-1][-1])
 
         # build the classifier MLP
-        self.classifier = self._build_classifier_mlp(feature_dim, config.cls_head)
+        self.classifier = self._build_classifier(feature_dim, conf['cls_head'])
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -81,18 +84,18 @@ class NDNetppClassifier(nn.Module):
         layers: List[nn.Module] = []
 
         # build the pointnet layer
-        pointnet = _generate_pointnet_layer(conf.pointnet_feature_dims)
+        pointnet = _generate_pointnet_layer(conf['pointnet_feature_dims'])
         layers.append(pointnet)
 
         # generate the fully-connected layers
-        in = in_features
-        for f in conf.cls_head.pointnet_feature_dims:
-            l = nn.Linear(in, int(f))  # create the FC layer
+        last_in = in_features
+        for f in conf['pointnet_feature_dims']:
+            l = nn.Linear(last_in, int(f))  # create the FC layer
             layers.append(l)  # add the layer to the list
-            in = int(f)  # update the input dimension of the next layer
+            last_in = int(f)  # update the input dimension of the next layer
         # add the last layer with the number of classes
-        l = nn.Linear(in, int(conf.num_classes))
-        s = nn.Softmax(int(conf.num_classes))
+        l = nn.Linear(last_in, int(conf['num_classes']))
+        s = nn.Softmax(int(conf['num_classes']))
         layers.extend([l, s])
 
         # build a sequential module from the list

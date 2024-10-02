@@ -6,7 +6,7 @@ num_epochs: 100
 
 backbone:
   num_nd_layers: 2
-  num_nds: [1024, 512] # number of normal distributions at each ND layer
+  num_nds: [512, 128] # number of normal distributions at each ND layer
   voxel_sizes: [0.05, 0.1] # voxel sizes for each ND layer
   # feature dimensions of the PointNet layers
   pointnet_feature_dims: 

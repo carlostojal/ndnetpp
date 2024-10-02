@@ -26,9 +26,9 @@ SOFTWARE.
 import torch
 from torch import nn
 from typing import Any, List
-from ndnetpp.nd import Voxelizer
-from ndnetpp.point_clouds import PointCloudNorm
-from ndnetpp.utils import _generate_nd_layer, _generate_pointnet_layer
+from models.ndnetpp.nd import Voxelizer
+from models.ndnetpp.point_clouds import PointCloudNorm
+from models.utils import _generate_nd_layer, _generate_pointnet_layer
 
 
 class NDNetppBackbone(nn.Module):
@@ -39,8 +39,8 @@ class NDNetppBackbone(nn.Module):
     def __init__(self, conf: Any) -> None:
         super().__init__()
 
-        self.num_nds = conf.backbone.num_nds
-        self.voxel_sizes = conf.backbone.voxel_sizes
+        self.num_nds = conf['backbone']['num_nds']
+        self.voxel_sizes = conf['backbone']['voxel_sizes']
 
         # create the point cloud normalization layer
         self.pcd_norm = PointCloudNorm()
@@ -48,16 +48,15 @@ class NDNetppBackbone(nn.Module):
         # generate the ND layers
         nd_layers_list: List[nn.Module] = []
         first: bool = True
-        for i in range(conf.backbone.num_nd_layers):
-            nd_layer = _generate_nd_layer(conf.backbone.num_nds[i],
-                                               conf.backbone.voxel_sizes[i],
-                                               conf.backbone.pointnet_feature_dims[i],
+        for i in range(conf['backbone']['num_nd_layers']):
+            nd_layer = _generate_nd_layer(conf['backbone']['num_nds'][i],
+                                               conf['backbone']['voxel_sizes'][i],
+                                               conf['backbone']['pointnet_feature_dims'][i],
                                                first)
             nd_layers_list.append(nd_layer)
             first = False
         self.nd_layers = nn.Sequential(*nd_layers_list)
 
-        raise NotImplementedError("ND-Net++ backbone not implemented.")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """

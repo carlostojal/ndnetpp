@@ -22,8 +22,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 """
+from typing import List
+import torch
+from torch import nn
+from models.ndnetpp.nd import Voxelizer
 
-def _generate_nd_layer(self, num_nds: int, voxel_size: float, feature_dims: List[int],
+def _generate_nd_layer(num_nds: int, voxel_size: float, feature_dims: List[int],
                            first: bool = True) -> nn.Module:
         """
         Generate a ND layer.
@@ -45,10 +49,10 @@ def _generate_nd_layer(self, num_nds: int, voxel_size: float, feature_dims: List
         pointnet = _generate_pointnet_layer(feature_dims)
 
         # create the sequential module
-        return nn.Sequential([nd, pointnet])
+        return nn.Sequential(*[nd, pointnet])
 
 
-def _generate_pointnet_layer(self, feature_dims: List[int]) -> nn.Module:
+def _generate_pointnet_layer(feature_dims: List[int]) -> nn.Module:
     """
     Generate a PointNet layer.
 
@@ -66,7 +70,7 @@ def _generate_pointnet_layer(self, feature_dims: List[int]) -> nn.Module:
     for i in range(len(feature_dims)-1):
         conv = nn.Conv1d(in_channels, feature_dims[i+1], 1)
         bn = nn.BatchNorm1d(feature_dims[i+1])
-        layer = nn.Sequential([conv, bn])
+        layer = nn.Sequential(*[conv, bn])
     layers.append(layer)
 
     # generate the sequential pointnet
