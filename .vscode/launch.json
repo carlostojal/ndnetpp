@@ -27,6 +27,18 @@
                 "--path", 
                 "/media/lei_proj_inf/Data/datasets/ModelNet40"
             ]
+        },
+        {
+            "name": "Train ND-Net Classifier",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "program": "tools/train_cls.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--data_path",
+                "../datasets/ModelNet40"
+            ]
         }
     ]
 }
