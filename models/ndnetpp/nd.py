@@ -156,7 +156,7 @@ class NDBlock(nn.Module):
     """
 
     def __init__(self, num_nds: int, voxel_size: float, feature_dims: List[int],
-                 tnet_feature_dims: List[int], in_dim: int = 3):
+                 tnet_feature_dims: List[int], in_dim: int = 3, first: bool = True):
         """
         ND Block class constructor:
 
@@ -164,7 +164,7 @@ class NDBlock(nn.Module):
             num_nds (int): Number of normal distributions to generate.
             voxel_size (float): Voxel size.
             feature_dims (List[int]): List of hidden layer dimensions.
-            in_dim (int): Is this the first ND layer of ND-Net? Default: True.
+            first (bool): Is this the first ND layer of ND-Net? Default: True.
         """
 
         super().__init__()
@@ -174,12 +174,13 @@ class NDBlock(nn.Module):
         self.feature_dims = feature_dims
         self.tnet_feature_dims = tnet_feature_dims
         self.in_dim = in_dim
+        self.first = first
 
         # initialize the voxelizer layer
-        self.voxelizer = Voxelizer(num_nds, voxel_size, in_dim != 3)
+        self.voxelizer = Voxelizer(num_nds, voxel_size, not self.first)
 
         ## initialize the PointNet layer
-        self.pointnet = PointNet(in_dim, feature_dims, tnet_feature_dims)
+        self.pointnet = PointNet(in_dim+(in_dim**2) if first else in_dim, feature_dims, tnet_feature_dims)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -193,10 +194,13 @@ class NDBlock(nn.Module):
         """
         
         # voxelize the input
-        x = self.voxelizer(x)
+        x_voxel = self.voxelizer(x)
 
         # learn features
-        x = self.pointnet(x)
+        x_feature, _ = self.pointnet(x_voxel)
+        x_feature = x_feature.transpose(1, 2)
+
+        x = torch.cat((x_voxel, x_feature), dim=2)
 
         return x
 
