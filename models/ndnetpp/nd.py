@@ -132,6 +132,7 @@ class Voxelizer(nn.Module):
         super().__init__()
         self.num_desired_dists = num_desired_dists
         self.voxel_size = voxel_size
+        self.from_dists = from_dists
         self.estimate_covariances = not from_dists
         self.mean_dims = -1 if from_dists else 3
 
@@ -139,3 +140,10 @@ class Voxelizer(nn.Module):
         # apply the autograd function
         return VoxelizerFunction.apply(x, self.num_desired_dists, self.voxel_size,
                                        self.estimate_covariances, self.mean_dims)
+    
+    def __repr__(self):
+        return (f"{self.__class__.__name__}("
+                f"num_dists={self.num_desired_dists} "
+                f"voxel_size={self.voxel_size} "
+                f"from_dists={self.from_dists}"
+        )
