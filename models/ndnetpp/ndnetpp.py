@@ -28,7 +28,7 @@ from torch import nn
 from typing import Any, List
 from models.ndnetpp.nd import Voxelizer
 from models.ndnetpp.point_clouds import PointCloudNorm
-from models.utils import _generate_nd_layer, _generate_pointnet_layer
+from models.ndnetpp.nd import NDBlock
 
 
 class NDNetppBackbone(nn.Module):
@@ -47,14 +47,16 @@ class NDNetppBackbone(nn.Module):
 
         # generate the ND layers
         nd_layers_list: List[nn.Module] = []
-        first: bool = True
+        in_dim: int = 3
         for i in range(conf['backbone']['num_nd_layers']):
-            nd_layer = _generate_nd_layer(conf['backbone']['num_nds'][i],
-                                               conf['backbone']['voxel_sizes'][i],
-                                               conf['backbone']['pointnet_feature_dims'][i],
-                                               first)
+            # TODO: consider the input dimension size
+            nd_layer = NDBlock(conf['backbone']['num_nds'][i],
+                                conf['backbone']['voxel_sizes'][i],
+                                conf['backbone']['pointnet_feature_dims'][i],
+                                conf['backbone']['tnet_feature_dims'][i],
+                                in_dim)
             nd_layers_list.append(nd_layer)
-            first = False
+            in_dim = 12+conf['backbone']['pointnet_feature_dims'][i][-1]
         self.nd_layers = nn.Sequential(*nd_layers_list)
 
 
