@@ -26,9 +26,11 @@ SOFTWARE.
 import torch
 from torch import nn
 import time
+from typing import List
 import nd_utils.voxelization
 import nd_utils.normal_distributions
 import nd_utils.point_clouds
+from models.pointnet import PointNet
 
 
 class VoxelizerFunction(torch.autograd.Function):
@@ -147,3 +149,54 @@ class Voxelizer(nn.Module):
                 f"voxel_size={self.voxel_size} "
                 f"from_dists={self.from_dists}"
         )
+    
+class NDBlock(nn.Module):
+    """
+    ND Block. Estimates normal distributions and learns features on them.
+    """
+
+    def __init__(self, num_nds: int, voxel_size: float, feature_dims: List[int],
+                 tnet_feature_dims: List[int], in_dim: int = 3):
+        """
+        ND Block class constructor:
+
+        Args:
+            num_nds (int): Number of normal distributions to generate.
+            voxel_size (float): Voxel size.
+            feature_dims (List[int]): List of hidden layer dimensions.
+            in_dim (int): Is this the first ND layer of ND-Net? Default: True.
+        """
+
+        super().__init__()
+
+        self.num_nds = num_nds
+        self.voxel_size = voxel_size
+        self.feature_dims = feature_dims
+        self.tnet_feature_dims = tnet_feature_dims
+        self.in_dim = in_dim
+
+        # initialize the voxelizer layer
+        self.voxelizer = Voxelizer(num_nds, voxel_size, in_dim != 3)
+
+        ## initialize the PointNet layer
+        self.pointnet = PointNet(in_dim, feature_dims, tnet_feature_dims)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the ND block.
+
+        Args:
+            x (torch.Tensor): Normal distributions with features or point cloud tensor shaped (batch_size, n_dists, d)
+
+        Returns:
+            torch.Tensor: Normal distributions and features tensor.
+        """
+        
+        # voxelize the input
+        x = self.voxelizer(x)
+
+        # learn features
+        x = self.pointnet(x)
+
+        return x
+
