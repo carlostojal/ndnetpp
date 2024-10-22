@@ -48,15 +48,18 @@ class NDNetppBackbone(nn.Module):
         # generate the ND layers
         nd_layers_list: List[nn.Module] = []
         in_dim: int = 3
+        first: bool = True
         for i in range(conf['backbone']['num_nd_layers']):
             # TODO: consider the input dimension size
             nd_layer = NDBlock(conf['backbone']['num_nds'][i],
                                 conf['backbone']['voxel_sizes'][i],
                                 conf['backbone']['pointnet_feature_dims'][i],
                                 conf['backbone']['tnet_feature_dims'][i],
-                                in_dim)
+                                in_dim,
+                                first)
             nd_layers_list.append(nd_layer)
             in_dim = 12+conf['backbone']['pointnet_feature_dims'][i][-1]
+            first = False
         self.nd_layers = nn.Sequential(*nd_layers_list)
 
 
