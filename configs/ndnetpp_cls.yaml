@@ -20,7 +20,7 @@ backbone:
 cls_head:
   num_classes: 40
   # last pointnet layer feature dimension
-  pointnet_feature_dims: [256, 512, 1024]
+  pointnet_feature_dims: [64, 64, 128]
   tnet_feature_dims: [64, 128, 1024, 512, 256]
   # fully connected layers
   fc_dims: [512, 256]
