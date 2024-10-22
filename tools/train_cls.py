@@ -71,11 +71,9 @@ if __name__ == '__main__':
     print(model)
 
     # dummy forward
-    """
-    pcd = torch.rand(1, 2000, 3, device=device)
+    pcd = torch.rand(2, 2000, 3, device=device)
     print(pcd.shape)
     out = model(pcd)
-    """
     
 
     
