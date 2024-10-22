@@ -197,10 +197,12 @@ class NDBlock(nn.Module):
         x_voxel = self.voxelizer(x)
 
         # learn features
-        x_feature, _ = self.pointnet(x_voxel)
+        x_feature = self.pointnet(x_voxel)
         x_feature = x_feature.transpose(1, 2)
 
-        x = torch.cat((x_voxel, x_feature), dim=2)
+        x = x_feature
+        if self.first:
+            x = torch.cat((x_voxel, x), dim=2)
 
         return x
 
