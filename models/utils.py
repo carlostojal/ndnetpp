@@ -27,6 +27,23 @@ import torch
 from torch import nn
 from models.ndnetpp.nd import Voxelizer
 
+
+class GlobalMaxPool1d(nn.Module):
+    """
+    Perform feature aggregation in a 2D matrix.
+    """
+    def __init__(self, dim: int, keepdim: bool = True) -> None:
+        super().__init__()
+        self.dim = dim
+        self.keepdim = keepdim
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+         
+        x = torch.max(x, dim=self.dim, keepdim=self.keepdim)[0]
+
+        return x
+
+
 def _generate_nd_layer(num_nds: int, voxel_size: float, feature_dims: List[int],
                            first: bool = True) -> nn.Module:
         """
