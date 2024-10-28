@@ -22,12 +22,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import torch
+from torch import nn
+from torch.utils.data import Dataset, DataLoader
 from argparse import ArgumentParser
 import yaml
 import sys
 import os
 sys.path.append(".")
 from models.ndnetpp.ndnetpp_cls import NDNetppClassifier
+from datasets.ModelNet import ModelNet
+from libs.pyprogress.ProgressBar import ProgressBar
 
 if __name__ == '__main__':
 
@@ -70,23 +74,51 @@ if __name__ == '__main__':
     model = model.to(device)
     print(model)
 
-    # dummy forward
-    pcd = torch.rand(2, 2000, 3, device=device)
-    print(pcd.shape)
-    out = model(pcd)
-    
+    # load the dataset
+    train_dataset = ModelNet(root_dir=args.data_path, stage="train")
+    test_dataset = ModelNet(root_dir=args.data_path, stage="test")
 
-    
+    # create dataloaders
+    train_loader = DataLoader(train_dataset, batch_size=int(config['batch_size']), shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
+    # create the criterion (cross-entropy loss due to being a classifier)
+    criterion = nn.CrossEntropyLoss()
 
+    # create the optimizer
+    optim = torch.optim.SGD(model.parameters(), lr=float(config['learning_rate']), momentum=float(config['momentum']),
+                            weight_decay=float(config['weight_decay']))
 
-    # TODO: build the model
-    # TODO: load the dataset and create a dataloader
-    # TODO: create the optimizer and criterion
-    # TODO: training loop
+    # iterate the epochs
+    for epoch in range(int(config['num_epochs'])):
+
+        # iterate the training set
+        train_bar = ProgressBar(len(train_loader))
+
+        for i, sample in train_loader:
+            pcd, cls = sample.to(device)
+
+            # zero the gradients
+            optim.zero_grad()
+
+            # create the target tensor
+            target: torch.Tensor = nn.functional.one_hot(cls, num_classes=40).float()
+
+            # forward pass
+            pred = model(pcd)
+
+            # compute the loss
+            loss = criterion(pred, target)
+
+            # backward
+            loss.backward()
+            optim.step()
+
+            train_bar.update(i, extra=f"loss={loss.item()}")
+
     # TODO: save pth files with the weights
 
-    raise NotImplementedError("Classifier training loop not implemented")
+    # TODO: testing samples
 
     # exit with code 0
     exit(0)
