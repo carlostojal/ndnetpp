@@ -50,6 +50,8 @@ class VoxelizerFunction(torch.autograd.Function):
             torch.Tensor: Normal distribution means and covariances (n_desired_dists, 12).
         """
 
+        # print("Voxel in: ", input.shape)
+
         # estimate the normal distributions
         start = time.time()
         # normal distributions shaped (batch_size, voxels_x, voxels_y, voxels_z, 12)
@@ -57,7 +59,7 @@ class VoxelizerFunction(torch.autograd.Function):
                                                                                                                estimate_covariances,
                                                                                                                mean_dims)
         end = time.time()
-        print(f"Normal distributions estimation time {dists.device}: {end - start}s - {(end-start)*1000}ms - {1.0 / (end-start)}Hz")
+        # print(f"Normal distributions estimation time {dists.device}: {end - start}s - {(end-start)*1000}ms - {1.0 / (end-start)}Hz")
 
         # get the voxel indices of the input point cloud (batch_size, n_points, 3) - point indices in voxel grid
         voxel_idxs_pcd = nd_utils.voxelization.metric_to_voxel_space(input[:, :, :3], voxel_size, n_voxels, min_coords)
@@ -83,10 +85,12 @@ class VoxelizerFunction(torch.autograd.Function):
         point_to_dist = torch.argmax(mask_int, dim=-1)
         point_to_dist[no_match] = -1 # set the points not present in any normal distribution to -1
 
-        print(torch.max(point_to_dist, dim=-1)[0])
+        # print(torch.max(point_to_dist, dim=-1)[0])
 
         # save the context
         ctx.save_for_backward(voxel_idxs_pcd, filtered_dists, sampled_idx, neighborhood_idxs, mask)
+
+        # print("Voxel out: ", filtered_dists.shape)
 
         # return the filtered normal distributions
         return filtered_dists
@@ -106,14 +110,9 @@ class VoxelizerFunction(torch.autograd.Function):
         # retrieve the saved tensors
         voxel_idxs_pcd, out_dists, sampled_idx, neighborhood_idxs, mask = ctx.saved_tensors
 
-        # sum the last dimension (normal distribution) of the gradients
-        dists_grad = dists_grad.sum(dim=-1)
+        input_grad = torch.bmm(mask.float(), dists_grad)
 
-        # broadcast the gradients to the points
-        input_grad = torch.zeros_like(voxel_idxs_pcd, dtype=dists_grad.dtype)
-        input_grad += (mask.float() * dists_grad.unsqueeze(1)).sum(dim=2).unsqueeze(-1)
-
-        return input_grad, None, None
+        return input_grad, None, None, None, None
 
 
 class Voxelizer(nn.Module):
