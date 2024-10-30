@@ -92,11 +92,15 @@ if __name__ == '__main__':
     # iterate the epochs
     for epoch in range(int(config['num_epochs'])):
 
+        print(f"** EPOCH {epoch+1} **")
+
         # iterate the training set
         train_bar = ProgressBar(len(train_loader))
+        i: int = 1
 
-        for i, sample in train_loader:
-            pcd, cls = sample.to(device)
+        for pcd, cls in train_loader:
+            pcd = pcd.to(device)
+            cls = cls.to(device)
 
             # zero the gradients
             optim.zero_grad()
@@ -115,6 +119,9 @@ if __name__ == '__main__':
             optim.step()
 
             train_bar.update(i, extra=f"loss={loss.item()}")
+            train_bar.print()
+
+            i += 1
 
     # TODO: save pth files with the weights
 
