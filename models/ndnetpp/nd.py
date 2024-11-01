@@ -26,9 +26,11 @@ SOFTWARE.
 import torch
 from torch import nn
 import time
+from typing import List
 import nd_utils.voxelization
 import nd_utils.normal_distributions
 import nd_utils.point_clouds
+from models.pointnet import PointNet
 
 
 class VoxelizerFunction(torch.autograd.Function):
@@ -48,6 +50,8 @@ class VoxelizerFunction(torch.autograd.Function):
             torch.Tensor: Normal distribution means and covariances (n_desired_dists, 12).
         """
 
+        # print("Voxel in: ", input.shape)
+
         # estimate the normal distributions
         start = time.time()
         # normal distributions shaped (batch_size, voxels_x, voxels_y, voxels_z, 12)
@@ -55,7 +59,7 @@ class VoxelizerFunction(torch.autograd.Function):
                                                                                                                estimate_covariances,
                                                                                                                mean_dims)
         end = time.time()
-        print(f"Normal distributions estimation time {dists.device}: {end - start}s - {(end-start)*1000}ms - {1.0 / (end-start)}Hz")
+        # print(f"Normal distributions estimation time {dists.device}: {end - start}s - {(end-start)*1000}ms - {1.0 / (end-start)}Hz")
 
         # get the voxel indices of the input point cloud (batch_size, n_points, 3) - point indices in voxel grid
         voxel_idxs_pcd = nd_utils.voxelization.metric_to_voxel_space(input[:, :, :3], voxel_size, n_voxels, min_coords)
@@ -81,10 +85,12 @@ class VoxelizerFunction(torch.autograd.Function):
         point_to_dist = torch.argmax(mask_int, dim=-1)
         point_to_dist[no_match] = -1 # set the points not present in any normal distribution to -1
 
-        print(torch.max(point_to_dist, dim=-1)[0])
+        # print(torch.max(point_to_dist, dim=-1)[0])
 
         # save the context
         ctx.save_for_backward(voxel_idxs_pcd, filtered_dists, sampled_idx, neighborhood_idxs, mask)
+
+        # print("Voxel out: ", filtered_dists.shape)
 
         # return the filtered normal distributions
         return filtered_dists
@@ -104,14 +110,9 @@ class VoxelizerFunction(torch.autograd.Function):
         # retrieve the saved tensors
         voxel_idxs_pcd, out_dists, sampled_idx, neighborhood_idxs, mask = ctx.saved_tensors
 
-        # sum the last dimension (normal distribution) of the gradients
-        dists_grad = dists_grad.sum(dim=-1)
+        input_grad = torch.bmm(mask.float(), dists_grad)
 
-        # broadcast the gradients to the points
-        input_grad = torch.zeros_like(voxel_idxs_pcd, dtype=dists_grad.dtype)
-        input_grad += (mask.float() * dists_grad.unsqueeze(1)).sum(dim=2).unsqueeze(-1)
-
-        return input_grad, None, None
+        return input_grad, None, None, None, None
 
 
 class Voxelizer(nn.Module):
@@ -132,6 +133,7 @@ class Voxelizer(nn.Module):
         super().__init__()
         self.num_desired_dists = num_desired_dists
         self.voxel_size = voxel_size
+        self.from_dists = from_dists
         self.estimate_covariances = not from_dists
         self.mean_dims = -1 if from_dists else 3
 
@@ -139,3 +141,67 @@ class Voxelizer(nn.Module):
         # apply the autograd function
         return VoxelizerFunction.apply(x, self.num_desired_dists, self.voxel_size,
                                        self.estimate_covariances, self.mean_dims)
+    
+    def __repr__(self):
+        return (f"{self.__class__.__name__}("
+                f"num_dists={self.num_desired_dists} "
+                f"voxel_size={self.voxel_size} "
+                f"from_dists={self.from_dists}"
+        )
+    
+class NDBlock(nn.Module):
+    """
+    ND Block. Estimates normal distributions and learns features on them.
+    """
+
+    def __init__(self, num_nds: int, voxel_size: float, feature_dims: List[int],
+                 tnet_feature_dims: List[int], in_dim: int = 3, first: bool = True):
+        """
+        ND Block class constructor:
+
+        Args:
+            num_nds (int): Number of normal distributions to generate.
+            voxel_size (float): Voxel size.
+            feature_dims (List[int]): List of hidden layer dimensions.
+            first (bool): Is this the first ND layer of ND-Net? Default: True.
+        """
+
+        super().__init__()
+
+        self.num_nds = num_nds
+        self.voxel_size = voxel_size
+        self.feature_dims = feature_dims
+        self.tnet_feature_dims = tnet_feature_dims
+        self.in_dim = in_dim
+        self.first = first
+
+        # initialize the voxelizer layer
+        self.voxelizer = Voxelizer(num_nds, voxel_size, not self.first)
+
+        ## initialize the PointNet layer
+        self.pointnet = PointNet(in_dim+(in_dim**2) if first else in_dim, feature_dims, tnet_feature_dims)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the ND block.
+
+        Args:
+            x (torch.Tensor): Normal distributions with features or point cloud tensor shaped (batch_size, n_dists, d)
+
+        Returns:
+            torch.Tensor: Normal distributions and features tensor.
+        """
+        
+        # voxelize the input
+        x_voxel = self.voxelizer(x)
+
+        # learn features
+        x_feature = self.pointnet(x_voxel)
+        x_feature = x_feature.transpose(1, 2)
+
+        x = x_feature
+        if self.first:
+            x = torch.cat((x_voxel, x), dim=2)
+
+        return x
+

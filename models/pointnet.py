@@ -134,4 +134,12 @@ class PointNet(nn.Module):
         x = self.bn3(self.conv3(x))
 
         # return a tensor with shape (batch_size, feature_dim, num_points) and the feature transform
-        return x, x_t2
+        return x
+    
+    def __repr__(self):
+
+        return (f"{self.__class__.__name__}("
+                f"point_dim={self.point_dim}, "
+                f"feature_dims={self.feature_dims}, "
+                f"tnet_feature_dims={self.tnet_feature_dims})"
+        )

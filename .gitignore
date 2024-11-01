@@ -5,3 +5,6 @@ __pycache__/
 *.log
 *.dvi
 *.aux
+venv
+.venv
+.idea

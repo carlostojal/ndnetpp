@@ -1,0 +1,3 @@
+[submodule "libs/pyprogress"]
+	path = libs/pyprogress
+	url = https://github.com/carlostojal/pyprogress.git

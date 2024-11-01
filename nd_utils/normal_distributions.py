@@ -135,7 +135,7 @@ def estimate_grid(points: torch.Tensor, min_coords: torch.Tensor,
     sample_counts = torch.zeros(grid_dim.tolist(), device=points.device).int()
 
     # get the voxel indices for each point with shape (batch_size, n_points, 3)
-    voxel_idxs = nd_utils.voxelization.metric_to_voxel_space(points, voxel_size, n_voxels, min_coords)
+    voxel_idxs = nd_utils.voxelization.metric_to_voxel_space(points[:, :, :3], voxel_size, n_voxels, min_coords)
 
     # create indices for increments
     batch_size = points.shape[0]
@@ -166,8 +166,8 @@ def estimate_grid(points: torch.Tensor, min_coords: torch.Tensor,
         # flatten the covariance matrix
         covs = covs.reshape(*covs.shape[:-2], -1)
 
-    # concatenate the means and covariances along the mean/flattened covariance dimension (last dimension)
-    dists = torch.cat((dists, covs), dim=-1)
+        # concatenate the means and covariances along the mean/flattened covariance dimension (last dimension)
+        dists = torch.cat((dists, covs), dim=-1)
 
     return dists, sample_counts
 
