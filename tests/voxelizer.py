@@ -1,6 +1,6 @@
 import unittest
 import torch
-from nd_utils.voxelization import find_point_cloud_limits, calculate_voxel_size
+from nd_utils.voxelization import *
 
 class TestVoxelizer(unittest.TestCase):
 
@@ -33,4 +33,25 @@ class TestVoxelizer(unittest.TestCase):
         print("Testing voxel size and count...")
         self.assertAlmostEqual(voxel_size, 1.0)
         self.assertTrue(torch.equal(torch.tensor([10, 10, 2]), n_voxels))
+
+    def test_convert_metric_to_voxel_space(self) -> None:
+
+        points: List[torch.Tensor] = []
+
+        for x in range(2):
+            for y in range(3):
+                for z in range(3):
+                    points.append(torch.tensor([x, y, z]))
+    
+        pcd = torch.stack(points, dim=0).unsqueeze(0)
+
+
+        print("Converting points from metric to voxel space...")
+        min_coords, _, _ = find_point_cloud_limits(pcd)
+        voxel_idx = metric_to_voxel_space(pcd, 1, 9, min_coords)
+
+        print("Testing voxel indices...")
+        self.assertTrue(torch.equal(pcd, voxel_idx))
+
+
 
