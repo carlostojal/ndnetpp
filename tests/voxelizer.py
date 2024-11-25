@@ -3,8 +3,14 @@ import torch
 from nd_utils.voxelization import *
 
 class TestVoxelizer(unittest.TestCase):
+    """
+    Test suite for the voxelizer utility functions.
+    """
 
     def test_find_limits(self) -> None:
+        """
+        Test the point cloud limit finding utility. Must return the minimum and maximum coordinates of a point cloud and dimensions in each axis.
+        """
 
         pcd = torch.tensor([[
             [-1, -1, -1],
@@ -26,6 +32,9 @@ class TestVoxelizer(unittest.TestCase):
         self.assertTrue(torch.equal(dimensions, torch.tensor([2, 2, 2])))
 
     def test_calculate_voxel_size(self) -> None:
+        """
+        Test the voxel size calculation utility. Must return the voxel size and count across dimensions considering a given desired number of voxels.
+        """
 
         print("Calculating voxel size and count...")
         voxel_size, n_voxels = calculate_voxel_size(torch.tensor([10, 10, 2]), 200)
@@ -35,6 +44,9 @@ class TestVoxelizer(unittest.TestCase):
         self.assertTrue(torch.equal(torch.tensor([10, 10, 2]), n_voxels))
 
     def test_convert_metric_to_voxel_space(self) -> None:
+        """
+        Test the conversion from metric to voxel space. Must return the voxel coordinates for each input point.
+        """
 
         points: List[torch.Tensor] = []
 
@@ -54,6 +66,9 @@ class TestVoxelizer(unittest.TestCase):
         self.assertTrue(torch.equal(pcd, voxel_idx))
 
     def test_convert_voxel_to_metric_space(self) -> None:
+        """
+        Test conversion from voxel to metric space. Must return the coordinate of the center of each voxel.
+        """
 
         voxel_idx_l: List[torch.Tensor] = []
 
