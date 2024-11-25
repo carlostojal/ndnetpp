@@ -71,7 +71,7 @@ def calculate_voxel_size(dimensions: torch.Tensor, n_desired_voxels: int) -> Tup
     voxel_size = torch.pow(torch.prod(dimensions) / n_desired_voxels, 1.0/3.0).item()
 
     # calculate the number of voxels in each dimension. the voxel_size is reshaped to (batch_size, 1) to allow broadcasting
-    n_voxels = torch.ceil(dimensions / voxel_size).int()
+    n_voxels = calculate_num_voxels(dimensions, voxel_size)
 
     return voxel_size, n_voxels
 
@@ -111,6 +111,10 @@ def metric_to_voxel_space(points: torch.Tensor, voxel_size: float, n_voxels: tor
     if points.size(2) != 3:
         raise ValueError("Points must be 3-dimensional")
 
+    # subtract half the voxel size to the minimum coordinates
+    min_coords = min_coords.float()
+    min_coords -= voxel_size / 2
+
     voxel_idx = torch.floor((points - min_coords) / voxel_size).long()
 
     # check out-of-bounds indices
@@ -138,4 +142,4 @@ def voxel_to_metric_space(voxels: torch.Tensor, voxel_size: torch.Tensor,
         raise ValueError("Voxel indices must be 3-dimensional")
     
     # get the voxel edge and add half a voxel and the offset
-    return (voxels * voxel_size) + (voxel_size / 2.0) + min_coords
+    return (voxels * voxel_size) + min_coords
